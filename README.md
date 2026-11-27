@@ -43,7 +43,7 @@
 | `go` | 다른 공간으로 이동 | `to` (공간 id) |
 | `info` | 안내 글 보기 | `title`, `body` |
 | `instrument` | 악기 연주 화면 열기 | `id` (`config.js` 의 `instruments` 이름) |
-| `cafe` | 카페 메뉴 열기 | 없음 (`config.js` 의 `cafe` 사용) |
+| `cafe` | 카페 메뉴 열기 | 없음 (`config.js` 의 `cafe` 사용. `cafe.image` 를 넣으면 메뉴 위에 사진이 나옵니다) |
 
 ## 악기
 

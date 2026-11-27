@@ -60,14 +60,25 @@ window.TOUR = {
       ],
     },
 
-    // TODO: 3층 사진을 받으면 hfov 와 좌표를 맞춥니다. 3층에 카페가 있습니다.
     hall3f: {
       name: "3층",
       image: "photos/3f-hall.jpg",
-      startYaw: 0,
+      hfov: 360,
+      startYaw: -130,
       hotspots: [
-        { type: "go", to: "cafe", yaw: 0, pitch: -6, label: "카페로" },
-        { type: "go", to: "elevator", yaw: 180, pitch: -4, label: "엘리베이터" },
+        { type: "go", to: "room3f", yaw: -139, pitch: -4, label: "안으로 들어가기" },
+        { type: "go", to: "elevator", yaw: 41, pitch: -6, label: "엘리베이터" },
+      ],
+    },
+
+    room3f: {
+      name: "3층 안쪽",
+      image: "photos/3f-room.jpg",
+      hfov: 360,
+      startYaw: -130,
+      hotspots: [
+        { type: "go", to: "cafe", yaw: -146, pitch: 4, label: "카페로" },
+        { type: "go", to: "hall3f", yaw: 22, pitch: -4, label: "엘리베이터 쪽으로" },
       ],
     },
 
@@ -131,14 +142,15 @@ window.TOUR = {
       ],
     },
 
-    // TODO: 카페 사진을 받으면 hfov 와 좌표를 맞춥니다.
+    // 360도가 아닌 넓은 각도 사진 (폰 0.6배 렌즈). 좌우 130도, 위아래 84도쯤 담겨 있습니다.
     cafe: {
-      name: "카페",
+      name: "카페 예:O",
       image: "photos/cafe.jpg",
+      hfov: 130, vfov: 84,
       startYaw: 0,
       hotspots: [
-        { type: "cafe", yaw: 0, pitch: -8, label: "커피 받기" },
-        { type: "go", to: "hall3f", yaw: 180, pitch: -6, label: "3층 복도로" },
+        { type: "cafe", yaw: -2, pitch: -6, label: "커피 받기" },
+        { type: "go", to: "room3f", yaw: 52, pitch: -4, label: "돌아가기" },
       ],
     },
   },
@@ -222,7 +234,8 @@ window.TOUR = {
   },
 
   cafe: {
-    title: "교회 카페",
+    title: "카페 예:O",
+    image: "photos/cafe-counter.jpg",   // 메뉴 위에 나오는 사진 (없으면 생략)
     intro: "한 잔 골라보세요.",
     menu: ["아메리카노", "카페라떼", "유자차", "아이스티"],
     // 쿠폰 화면에 나오는 문구. 실제로 음료를 드릴 계획이 없으면 문구를 바꿔주세요.

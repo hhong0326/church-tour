@@ -134,7 +134,7 @@ ul.plain { margin: 0; padding: 0; list-style: none; display: flex; flex-directio
 .wk.next.down { background: var(--brass); }
 
 /* 드럼, 줄 악기 */
-#instImg { width: 100%; height: 130px; object-fit: cover; border-radius: 12px; }
+#instImg, .photo { width: 100%; height: 130px; object-fit: cover; border-radius: 12px; }
 .pads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; touch-action: none; }
 .pad { aspect-ratio: 1.25; border: 1px solid var(--line); background: rgba(246,240,228,.07); border-radius: 14px; font-size: 15px; padding: 4px; touch-action: none; }
 .pad.down { background: var(--brass); color: var(--brass-ink); }
@@ -235,6 +235,7 @@ ul.plain { margin: 0; padding: 0; list-style: none; display: flex; flex-directio
 <div class="veil" id="cafeV" hidden>
   <div class="sheet" role="dialog" aria-labelledby="cafeT">
     <header><h2 id="cafeT"></h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
+    <img id="cafeImg" class="photo" alt="" hidden>
     <p class="sub" id="cafeIntro"></p>
     <div id="menu"></div>
     <div id="brewing" hidden><p id="brewText"></p><div id="brew"><div></div></div></div>
@@ -1115,6 +1116,8 @@ document.addEventListener("visibilitychange", function () {
 var C = T.cafe || {};
 function openCafe() {
   $("cafeT").textContent = C.title || "카페"; $("cafeIntro").textContent = C.intro || "";
+  var im = $("cafeImg");
+  if (C.image && !im.src) { im.onload = function () { im.hidden = false; }; im.alt = (C.title || "카페") + " 사진"; im.src = C.image; }
   resetCafe(); show($("cafeV"));
 }
 function resetCafe() {
