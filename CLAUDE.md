@@ -27,7 +27,8 @@ python3 -m http.server 8000
 - 사진 불러오기, 임시 배경: `loadScene`, `setCover`, `placeholder`
 - 표시(핫스팟): `buildSpots`, `act`, `go`
 - 악기: `INST`, `openInst`, `renderKeys`, `renderDrums`, `renderStrings`
-- 따라 치기: 건반은 `parseNotes`, `renderKeys` 안의 `follow`, `mark` / 기타, 베이스, 드럼은 `songRow`, `parseChords`, `drumSeq`, 각 `render*` 안의 `mark`
+- 따라 치기: 곡 데이터 `songModel`, 코드 구간 `chordWindows`, 곡 버튼 `songRow`/`songsFor`, 건반은 `renderKeys` 안의 `follow`, 드럼 `drumSeq`, 각 `render*` 안의 `mark`/`advance`
+- 따라 치기 반주: `playSpan`(구간 반주, 앞 구간 취소), `playVoice`(배경 음악과 같은 음색)
 - 소리: `noteOn`(건반), `ksBuffer`/`pluck`(줄), `drum`
 - 배경 음악: `parseTimed`, `bgmStart`, `bgmPump`(미리 예약), `bgmNote`, `bgmDuck`(악기 열 때 줄임)
 - 카페: `openCafe`
