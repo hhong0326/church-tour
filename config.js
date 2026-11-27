@@ -50,12 +50,13 @@ window.TOUR = {
     elevator: {
       name: "엘리베이터",
       image: "photos/elevator-in.jpg",
-      hfov: 360,
-      startYaw: -125,
+      // 거울에 비친 사람 부분을 잘라낸 사진이라 360도가 아닌 314도입니다. (세로 각도는 원래 360도 사진과 같게)
+      hfov: 314, vfov: 100,
+      startYaw: -10,
       hotspots: [
-        { type: "go", to: "hall4f", yaw: -139, pitch: 12,  label: "4층" },
-        { type: "go", to: "hall3f", yaw: -139, pitch: -2,  label: "3층" },
-        { type: "go", to: "elevator1f", yaw: -139, pitch: -16, label: "1층" },
+        { type: "go", to: "hall4f", yaw: -19, pitch: 12,  label: "4층" },
+        { type: "go", to: "hall3f", yaw: -19, pitch: -2,  label: "3층" },
+        { type: "go", to: "elevator1f", yaw: -19, pitch: -16, label: "1층" },
       ],
     },
 
