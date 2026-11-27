@@ -59,7 +59,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #bag { position: absolute; right: 10px; top: 104px; background: #fbf7ee; color: #2b2418; border: 4px solid #2b2418; border-radius: 10px;
   padding: 10px 12px; width: min(300px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 6px; }
 #bag h3 { margin: 0; font-size: 15px; }
-#bag button.item { border: 0; background: #efe3c4; border-radius: 8px; padding: 8px 10px; text-align: left; color: #2b2418; }
+#bag button.item { border: 0; background: #efe3c4; border-radius: 8px; padding: 8px 10px; text-align: left; color: #2b2418; display: flex; gap: 10px; align-items: center; }
+.ico { image-rendering: pixelated; image-rendering: crisp-edges; flex: none; }
+#toast .ico { display: block; margin: 0 auto 6px; }
+#menu button.soon { color: #8a7a5a; }
 #bag button.item b { display: block; font-size: 15px; }
 #bag button.item small { color: #6b5a3a; }
 #bag p { margin: 0; color: #6b5a3a; font-size: 14px; }
@@ -209,11 +212,31 @@ var TILE = {
   "D": function (R) { floor(R); R(0, 0, 2, 16, "#7a4b2a"); R(14, 0, 2, 16, "#7a4b2a"); R(3, 4, 10, 8, "#a77852"); R(4, 5, 8, 6, "#b98a62"); },
   "E": function (R) { R(0, 0, 16, 16, "#6e6e69"); R(1, 2, 14, 14, "#c9c6bd"); R(7, 2, 2, 14, "#8d8a82"); R(1, 0, 14, 2, "#4a4a46"); R(12, 0, 2, 2, "#7fe0a0"); },
   "L": function (R) { R(0, 0, 16, 16, "#e6bcac"); R(3, 2, 10, 13, "#8a5a33"); R(3, 2, 10, 2, "#a8703f"); R(7, 6, 2, 7, "#e0c080"); R(5, 8, 6, 2, "#e0c080"); },
+  // 엘리베이터 두 칸(EE)은 왼쪽 문, 오른쪽 문으로 나눠 그린다. 가운데 틈이 문이 열리는 곳
+  "E<": function (R) {
+    wall(R); R(1, 0, 15, 16, "#5f6368"); R(3, 1, 13, 2, "#2a2d31"); R(13, 1, 2, 1, "#7fe0a0");
+    R(3, 4, 13, 12, "#b9bec4"); R(4, 5, 1, 10, "#e3e7eb"); R(3, 4, 13, 1, "#8d939a"); R(15, 4, 1, 12, "#30343a");
+  },
+  "E>": function (R) {
+    wall(R); R(0, 0, 15, 16, "#5f6368"); R(0, 1, 13, 2, "#2a2d31"); R(1, 2, 2, 1, "#f0b44a");
+    R(0, 4, 13, 12, "#b9bec4"); R(11, 5, 1, 10, "#e3e7eb"); R(0, 4, 13, 1, "#8d939a"); R(0, 4, 1, 12, "#30343a");
+    R(14, 7, 2, 4, "#3a3d42"); R(14, 8, 1, 1, "#f0c040"); R(14, 9, 1, 1, "#f0c040");
+  },
+  // 계단: 올라가는 계단은 밝게, 내려가는 계단은 어둡게. 위에 화살표를 따로 얹는다 (drawStairsSign)
   "s": function (R) { R(0, 0, 16, 16, "#bdb6a6"); for (var y = 1; y < 16; y += 3) { R(0, y, 16, 1, "#8c8576"); R(0, y + 1, 16, 1, "#d2ccbe"); } },
+  "s^": function (R) { R(0, 0, 16, 16, "#d8d1c1"); for (var y = 0; y < 16; y += 4) { R(0, y, 16, 1, "#f3eee3"); R(0, y + 3, 16, 1, "#a89f8c"); } R(0, 0, 1, 16, "#8c8576"); R(15, 0, 1, 16, "#8c8576"); },
+  "sv": function (R) { R(0, 0, 16, 16, "#8a8373"); for (var y = 0; y < 16; y += 4) { R(0, y, 16, 1, "#a69e8c"); R(0, y + 3, 16, 1, "#5e584c"); } R(0, 0, 1, 16, "#4a453c"); R(15, 0, 1, 16, "#4a453c"); },
   " ": function (R) { R(0, 0, 16, 16, "#20242b"); }
 };
 var SOLID = "#wxbhtckpEL ";
 var tileCache = {};
+// 이웃 칸에 따라 그림을 고른다 (엘리베이터 왼쪽/오른쪽 문, 계단 위/아래)
+function tileKey(m, x, y) {
+  var ch = tileAt(m, x, y);
+  if (ch === "E") return tileAt(m, x + 1, y) === "E" ? "E<" : tileAt(m, x - 1, y) === "E" ? "E>" : "E";
+  if (ch === "s" && m.stairsWay) return m.stairsWay === "up" ? "s^" : "sv";
+  return ch;
+}
 function tileImg(ch) { if (!TILE[ch]) ch = " "; return tileCache[ch] || (tileCache[ch] = paint(TILE[ch])); }
 
 /* ---------- 그림: 악기와 물건 ---------- */
@@ -227,6 +250,44 @@ var THING = {
   cafe: function (R) { R(0, 3, 16, 13, "#2f333a"); R(0, 3, 16, 3, "#5b616b"); R(3, 0, 10, 9, "#d7d7d2"); R(4, 1, 8, 2, "#9aa3ad"); R(5, 5, 2, 3, "#333"); R(9, 5, 2, 3, "#333"); R(6, 9, 4, 3, "#f4f1ea"); },
   sign: function (R) { R(3, 3, 10, 9, "#6b4a2b"); R(4, 4, 8, 7, "#f4ead2"); R(5, 6, 6, 1, "#8a7a63"); R(5, 8, 4, 1, "#8a7a63"); }
 };
+/* ---------- 그림: 가방 아이템 (16x16). items 의 icon 으로 고르고, color 로 겉 색을 바꾼다 ---------- */
+var ICON = {
+  bible: function (R, g, col) {
+    col = col || "#2f5fae";
+    R(3, 2, 10, 12, "#2a2420"); R(4, 2, 9, 11, col); R(3, 2, 2, 12, shade(col, 0.6));
+    R(5, 13, 8, 1, "#f4f1ea"); R(12, 3, 1, 10, shade(col, 0.8));
+    R(8, 4, 2, 7, "#f0c94a"); R(6, 6, 6, 2, "#f0c94a");
+  },
+  coupon: function (R, g, col) {
+    col = col || "#e0ad4e";
+    R(0, 4, 16, 9, "#2a2420"); R(1, 5, 14, 7, col); g.clearRect(0, 7, 1, 3); g.clearRect(15, 7, 1, 3);
+    R(3, 7, 5, 4, "#fbf7ee"); R(8, 8, 1, 2, "#fbf7ee"); R(4, 7, 3, 1, "#6b4426"); R(3, 11, 6, 1, shade(col, 0.7));
+    for (var y = 5; y < 12; y += 2) R(10, y, 1, 1, shade(col, 0.6));
+    R(12, 7, 2, 1, "#fbf7ee"); R(12, 9, 2, 1, "#fbf7ee");
+  },
+  ticket: function (R, g, col) {
+    col = col || "#f4ead2";
+    R(1, 1, 14, 14, "#b89a5e"); R(2, 2, 12, 12, col);
+    R(5, 5, 6, 5, "#ffffff"); R(5, 5, 6, 1, "#6b4426"); R(11, 6, 1, 2, "#ffffff"); R(4, 10, 8, 1, "#b89a5e");
+    R(6, 2, 1, 2, "#c9a96a"); R(9, 2, 1, 2, "#c9a96a"); R(4, 12, 8, 1, "#c0392b");
+  },
+  box: function (R, g, col) { col = col || "#c9a271"; R(2, 4, 12, 10, "#2a2420"); R(3, 5, 10, 8, col); R(7, 5, 2, 8, shade(col, 0.7)); }
+};
+var iconCache = {};
+function itemImg(id) {
+  if (iconCache[id]) return iconCache[id];
+  var it = id === "ticket" ? { icon: "ticket" } : (ITEMS[id] || {}), fn = ICON[it.icon || id] || ICON.box;
+  var c = document.createElement("canvas"); c.width = c.height = TS;
+  var g = c.getContext("2d");
+  fn(function (x, y, w, h, col) { g.fillStyle = col; g.fillRect(x, y, w, h); }, g, it.color);
+  return (iconCache[id] = c);
+}
+function iconEl(id, px) {
+  var c = document.createElement("canvas"); c.width = c.height = TS; c.className = "ico";
+  c.getContext("2d").drawImage(itemImg(id), 0, 0);
+  c.style.width = c.style.height = (px || 36) + "px";
+  return c;
+}
 var INST_THING = { piano: "piano", keys2: "keys", drums: "drums", bass: "bass", eguitar: "eguitar", aguitar: "aguitar" };
 var thingCache = {};
 function thingImg(name) { return thingCache[name] || (thingCache[name] = THING[name] ? paint(THING[name]) : null); }
@@ -282,6 +343,17 @@ Object.keys(G.maps).forEach(function (id) {
   m.rows.forEach(function (r) { w = Math.max(w, r.length); });
   var objs = (m.objects || []).map(function (o) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); return c; });
   maps[id] = { id: id, name: m.name || id, rows: m.rows, w: w, h: m.rows.length, areas: m.areas || [], objs: objs, stairs: m.stairs };
+  // 계단 방향: stairs.way ("up"/"down"), 없으면 층 번호(예: 4f → 3f 는 내려감)로 짐작
+  var sx = m.stairs;
+  if (sx) {
+    var a = parseInt(id, 10), b = parseInt(sx.to, 10);
+    maps[id].stairsWay = sx.way || (a && b ? (b > a ? "up" : "down") : "");
+    var bx = null;
+    m.rows.forEach(function (r, y) { for (var x = 0; x < r.length; x++) if (r[x] === "s") {
+      if (!bx) bx = { x0: x, y0: y, x1: x, y1: y }; else { bx.x0 = Math.min(bx.x0, x); bx.y0 = Math.min(bx.y0, y); bx.x1 = Math.max(bx.x1, x); bx.y1 = Math.max(bx.y1, y); }
+    } });
+    maps[id].stairsBox = bx;
+  }
 });
 function tileAt(m, x, y) { var r = m.rows[y]; return r && r[x] !== undefined ? r[x] : " "; }
 function objAt(m, x, y) { for (var i = 0; i < m.objs.length; i++) if (m.objs[i].x === x && m.objs[i].y === y) return m.objs[i]; return null; }
@@ -341,8 +413,9 @@ function draw() {
   for (var y = 0; y <= VH + 1; y++) for (var x = 0; x <= VW + 1; x++) {
     var tx = x0 + x, ty = y0 + y;
     if (tx < 0 || ty < 0 || tx >= m.w || ty >= m.h) continue;
-    ctx.drawImage(tileImg(tileAt(m, tx, ty)), ox + x * TS, oy + y * TS);
+    ctx.drawImage(tileImg(tileKey(m, tx, ty)), ox + x * TS, oy + y * TS);
   }
+  if (m.stairsBox) drawStairsSign(m, cx, cy);
   function at(wx, wy) { return [Math.round((wx - cx) * TS), Math.round((wy - cy) * TS)]; }
   function shadow(q) { ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(q[0] + 4, q[1] + 17, 8, 2); }
   // 아래쪽에 있는 것을 나중에 그려서 겹침이 자연스럽게
@@ -378,12 +451,31 @@ function draw() {
       shadow(q);
       ctx.drawImage(personImg(o.look, o.dir || "down", 0), q[0], q[1]);
       if (o.cry && !st.given[o.id] && (now / 400 | 0) % 2) { ctx.fillStyle = "#5dade2"; ctx.fillRect(q[0] + 4, q[1] + 8, 1, 2); ctx.fillRect(q[0] + 11, q[1] + 9, 1, 2); }
-      if (questTarget(o)) { ctx.fillStyle = "#e0ad4e"; ctx.fillRect(q[0] + 7, q[1] - 7, 2, 4); ctx.fillRect(q[0] + 7, q[1] - 2, 2, 2); }
+      // 돌려받은 물건을 품에 안고 있다 (시온이의 파란 성경책)
+      if (o.give && st.given[o.id] && itemImg(o.give.need)) ctx.drawImage(itemImg(o.give.need), 0, 0, 16, 16, q[0] + 5, q[1] + 9, 6, 6);
+      if (questTarget(o)) drawBang(q, now);
     } else {
       var img2 = thingImg(o.type === "inst" ? (o.sprite || INST_THING[o.id] || "keys") : (o.sprite || o.type));
       if (img2) ctx.drawImage(img2, q[0], q[1]);
+      if (o.type === "cafe" && QUESTS[st.q] && QUESTS[st.q].until === "coupon" && has("coupon")) drawBang(q, now);
     }
   });
+}
+// 계단 위에 커다란 화살표 하나 (올라가면 ▲, 내려가면 ▼)
+var ARROW = ["....o....", "...oxo...", "..oxxxo..", ".oxxxxxo.", "oxxxxxxxo", "oooxxxooo", "..oxxxo..", "..oxxxo..", "..ooooo.."];
+function drawStairsSign(m, cx, cy) {
+  var b = m.stairsBox, up = m.stairsWay !== "down", bob = reduce ? 0 : (performance.now() / 350 | 0) % 2;
+  var px = Math.round(((b.x0 + b.x1 + 1) / 2 - cx) * TS) - 9, py = Math.round(((b.y0 + b.y1 + 1) / 2 - cy) * TS) - 9 + (up ? -bob : bob);
+  ARROW.forEach(function (row, y) {
+    var yy = up ? y : 8 - y;
+    for (var x = 0; x < 9; x++) { var ch = row[x]; if (ch === ".") continue; ctx.fillStyle = ch === "o" ? "#2a2420" : (up ? "#fbf7ee" : "#f0c040"); ctx.fillRect(px + x * 2, py + yy * 2, 2, 2); }
+  });
+}
+// 느낌표: 빨간색, 살짝 위아래로
+function drawBang(q, now) {
+  var bob = reduce ? 0 : (now / 300 | 0) % 2, x = q[0] + 6, y = q[1] - 10 + bob;
+  ctx.fillStyle = "#2a2420"; ctx.fillRect(x, y, 4, 10);
+  ctx.fillStyle = "#e53935"; ctx.fillRect(x + 1, y + 1, 2, 5); ctx.fillRect(x + 1, y + 7, 2, 2);
 }
 // 지금 미션에서 찾아가야 할 사람 머리 위에 느낌표
 function questTarget(o) {
@@ -454,7 +546,7 @@ function interact() {
   var f = (G.finds || []).filter(function (f) { return f.map === P.map && f.x === fx && f.y === fy; })[0];
   if (f && !has(f.item) && !st.ev["get:" + f.item]) {
     blip();
-    return talk("", f.say || ["무언가를 찾았어요!"], function () { addItem(f.item); toast((ITEMS[f.item] || {}).name + " 을(를) 얻었어요!"); fanfare(); });
+    return talk("", f.say || ["무언가를 찾았어요!"], function () { addItem(f.item); toast((ITEMS[f.item] || {}).name + " 을(를) 얻었어요!", f.item); fanfare(); });
   }
   if (G.look && G.look[ch]) { blip(); talk("", [G.look[ch]], null); }
 }
@@ -465,7 +557,7 @@ function useObject(o) {
     if (gv && !st.given[o.id] && has(gv.need)) {
       return talk(o.name || "", o.sayGive || ["고마워요!"], function () {
         dropItem(gv.need); st.given[o.id] = true;
-        if (gv.get) { addItem(gv.get); toast((ITEMS[gv.get] || {}).name + " 을(를) 받았어요!"); fanfare(); }
+        if (gv.get) { addItem(gv.get); toast((ITEMS[gv.get] || {}).name + " 을(를) 받았어요!", gv.get); fanfare(); }
         emit("talk:" + o.id); save();
       });
     }
@@ -520,7 +612,8 @@ function elevatorMenu() {
   var p = document.createElement("p"); p.textContent = "몇 층으로 갈까요?"; m.appendChild(p);
   menuItems = (G.elevator || []).filter(function (it) { return it.map !== P.map; }).concat([{ label: "그만두기" }]);
   menuItems.forEach(function (it, i) {
-    var b = document.createElement("button"); b.type = "button"; b.textContent = it.label; b.setAttribute("role", "menuitem");
+    var b = document.createElement("button"); b.type = "button"; b.textContent = it.label + (it.soon ? " · 준비 중" : ""); b.setAttribute("role", "menuitem");
+    if (it.soon) b.className = "soon";
     b.addEventListener("click", function () { menuSel = i; menuPick(); });
     m.appendChild(b);
   });
@@ -530,6 +623,7 @@ function markMenu() { Array.prototype.forEach.call($("menu").querySelectorAll("b
 function menuMove(d) { if (d === "up" || d === "down") { menuSel = (menuSel + (d === "up" ? -1 : 1) + menuItems.length) % menuItems.length; markMenu(); blip(); } }
 function menuPick() {
   var it = menuItems[menuSel]; $("menu").hidden = true; busyUntil = performance.now() + 150;
+  if (it && it.soon) return talk("", it.soon === true ? [it.label + "은(는) 지금 준비 중이에요."] : it.soon, null);
   if (!it || !it.map) return;
   ding();
   $("cv").classList.add("fade");
@@ -558,7 +652,7 @@ function updateQuest() {
   q.appendChild(b); q.appendChild(document.createTextNode(st.q < QUESTS.length ? QUESTS[st.q].text : (G.doneText || "")));
 }
 var toastT = null;
-function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, 1800); }
+function toast(msg, ico) { var t = $("toast"); t.textContent = ""; if (ico) t.appendChild(iconEl(ico, 48)); t.appendChild(document.createTextNode(msg)); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, 1800); }
 
 /* ---------- 가방 ---------- */
 function updateBag() {
@@ -568,14 +662,16 @@ function updateBag() {
 function openBag() {
   var b = $("bag"); b.textContent = ""; held = [];
   var h = document.createElement("h3"); h.textContent = "가방"; b.appendChild(h);
-  function row(title, desc, onClick) {
+  function row(title, desc, onClick, ico) {
     var it = document.createElement("button"); it.type = "button"; it.className = "item";
-    var t = document.createElement("b"); t.textContent = title; it.appendChild(t);
-    var d = document.createElement("small"); d.textContent = desc; it.appendChild(d);
+    it.appendChild(iconEl(ico, 40));
+    var tx = document.createElement("span"); it.appendChild(tx);
+    var t = document.createElement("b"); t.textContent = title; tx.appendChild(t);
+    var d = document.createElement("small"); d.textContent = desc; tx.appendChild(d);
     it.addEventListener("click", onClick); b.appendChild(it);
   }
-  st.items.forEach(function (id) { var it = ITEMS[id] || { name: id, desc: "" }; row(it.name, it.desc || "", function () {}); });
-  if (st.ticket) row("음료 교환권 · " + st.ticket.drink, "눌러서 보기. 카페에서 이 화면을 보여주세요", function () { b.hidden = true; showTicket(); });
+  st.items.forEach(function (id) { var it = ITEMS[id] || { name: id, desc: "" }; row(it.name, it.desc || "", function () {}, id); });
+  if (st.ticket) row("음료 교환권 · " + st.ticket.drink, "눌러서 보기. 카페에서 이 화면을 보여주세요", function () { b.hidden = true; showTicket(); }, "ticket");
   if (!st.items.length && !st.ticket) { var p = document.createElement("p"); p.textContent = "아직 아무것도 없어요."; b.appendChild(p); }
   var c = document.createElement("button"); c.type = "button"; c.className = "pill"; c.textContent = "닫기";
   c.addEventListener("click", function () { b.hidden = true; busyUntil = performance.now() + 150; }); b.appendChild(c);
@@ -631,7 +727,12 @@ function showCard(kind) {
   } else {
     $("ivT").textContent = inv.title || ""; $("ivNote").textContent = inv.note || "";
     var ul = $("ivLines"); ul.textContent = "";
-    (inv.lines || []).forEach(function (t) { var li2 = document.createElement("li"); li2.textContent = t; ul.appendChild(li2); });
+    (inv.lines || []).forEach(function (t) {
+      var li2 = document.createElement("li");
+      if (t && typeof t === "object") { var a = document.createElement(t.url ? "a" : "span"); a.textContent = t.text || t.url || ""; if (t.url) { a.href = t.url; a.target = "_blank"; a.rel = "noopener"; a.style.color = "inherit"; } li2.appendChild(a); }
+      else li2.textContent = t;
+      ul.appendChild(li2);
+    });
     if (inv.map) { $("ivMap").href = inv.map; $("ivMap").hidden = false; }
   }
   $("inviteV").hidden = false; $("ivClose").focus();

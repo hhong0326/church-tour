@@ -574,11 +574,18 @@ document.querySelectorAll(".veil").forEach(function (v) {
     if (v.id !== "intro" && (e.target === v || e.target.closest("[data-close]"))) userClose();
   });
 });
+// 초대장 한 줄: 글자, 또는 { text, url } 이면 누를 수 있는 링크 (예: 인스타그램 계정)
+function lineEl(t) {
+  if (!t || typeof t !== "object") return document.createTextNode(String(t || ""));
+  var a = document.createElement(t.url ? "a" : "span"); a.textContent = t.text || t.url || "";
+  if (t.url) { a.href = t.url; a.target = "_blank"; a.rel = "noopener"; a.style.color = "inherit"; }
+  return a;
+}
 function showInfo(title, body, lines, link) {
   $("infoT").textContent = title; var b = $("infoB"); b.textContent = "";
   if (lines && lines.length) {
     var ul = document.createElement("ul"); ul.className = "plain";
-    lines.forEach(function (t) { var li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+    lines.forEach(function (t) { var li = document.createElement("li"); li.appendChild(lineEl(t)); ul.appendChild(li); });
     b.appendChild(ul);
   }
   if (body) { var p = document.createElement("p"); p.textContent = body; if (lines) p.className = "sub"; p.style.marginTop = lines ? "12px" : "0"; b.appendChild(p); }
@@ -1176,7 +1183,7 @@ $("introTag").textContent = T.church.tagline || "";
 var inv = T.invite;
 if (inv) {
   var iv = $("introInvite"), b0 = document.createElement("b"); b0.textContent = inv.title; iv.appendChild(b0);
-  if (inv.lines && inv.lines[0]) iv.appendChild(document.createTextNode(inv.lines[0]));
+  if (inv.lines && inv.lines[0]) iv.appendChild(lineEl(inv.lines[0]));
   $("inviteBtn").addEventListener("click", function () { stopAuto(); showInfo(inv.title, inv.note, inv.lines, inv.map ? { href: inv.map, text: "지도 보기" } : null); });
 } else { $("inviteBtn").hidden = true; $("introInvite").hidden = true; }
 
