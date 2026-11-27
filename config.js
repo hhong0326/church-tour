@@ -35,7 +35,7 @@ window.TOUR = {
       name: "1층 엘리베이터 앞",
       image: "photos/elevator-1f.jpg",
       hfov: 360,
-      startYaw: -120,
+      startYaw: -142,
       hotspots: [
         { type: "go", to: "elevator", yaw: -137, pitch: -4, label: "엘리베이터 타기" },
         {
