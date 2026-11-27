@@ -260,11 +260,11 @@ var editMode = location.hash === "#edit";
 /* 다른 페이지 안에 넣기 (#embed): 게임 화면(game.html)이 이 투어를 iframe 으로 띄울 때 쓴다.
    #embed&scene=stage       그 공간의 360도 사진만 (첫 화면, 공간 목록, 초대장, 배경 음악 없음)
    #embed&open=inst:piano   악기 연주 창을 바로 연다. open=cafe 는 카페
-   부모 페이지에 알리는 것: {tour:"close"} 창을 닫음, {tour:"played"} 연주함, {tour:"song"} 한 곡 완주, {tour:"coupon"} 쿠폰 받음 */
+   부모 페이지에 알리는 것: {tour:"close"} 창을 닫음, {tour:"played"} 연주함, {tour:"song"} 한 곡 완주, {tour:"coupon", detail: 음료} 쿠폰 받음 */
 var Q = {};
 location.hash.slice(1).split("&").forEach(function (kv) { var i = kv.indexOf("="); if (kv) Q[i < 0 ? kv : kv.slice(0, i)] = i < 0 ? "" : decodeURIComponent(kv.slice(i + 1)); });
 var embed = "embed" in Q && window.parent !== window;
-function notify(type) { if (embed) window.parent.postMessage({ tour: type }, "*"); }
+function notify(type, detail) { if (embed) window.parent.postMessage({ tour: type, detail: detail || null }, "*"); }
 
 /* ---------- WebGL 파노라마 ---------- */
 var canvas = $("view"), spotsEl = $("spots");
@@ -1143,7 +1143,7 @@ function resetCafe() {
     requestAnimationFrame(function () { requestAnimationFrame(function () { $("brew").firstElementChild.style.width = "100%"; }); });
     setTimeout(function () {
       $("brewing").hidden = true; $("coupon").hidden = false; $("again").hidden = false;
-      $("cpTitle").textContent = C.couponTitle || ""; $("cpDrink").textContent = name; notify("coupon");
+      $("cpTitle").textContent = C.couponTitle || ""; $("cpDrink").textContent = name; notify("coupon", name);
       $("cpChurch").textContent = T.church.name; $("cpNote").textContent = C.couponNote || "";
     }, reduce ? 300 : 1400);
   });

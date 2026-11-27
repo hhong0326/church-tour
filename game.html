@@ -56,6 +56,18 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #menu button.sel, #menu button:hover { background: #efe3c4; }
 #menu button.sel::before { content: "▶"; position: absolute; left: 8px; font-size: 12px; top: 12px; }
 
+#bag { position: absolute; right: 10px; top: 104px; background: #fbf7ee; color: #2b2418; border: 4px solid #2b2418; border-radius: 10px;
+  padding: 10px 12px; width: min(300px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 6px; }
+#bag h3 { margin: 0; font-size: 15px; }
+#bag button.item { border: 0; background: #efe3c4; border-radius: 8px; padding: 8px 10px; text-align: left; color: #2b2418; }
+#bag button.item b { display: block; font-size: 15px; }
+#bag button.item small { color: #6b5a3a; }
+#bag p { margin: 0; color: #6b5a3a; font-size: 14px; }
+#emotes { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100% - 20px); }
+#emotes button { font-size: 13px; padding: 6px 10px; }
+#ticket { background: var(--paper); color: #2b2418; border-radius: 14px; padding: 18px; border: 2px dashed #b89a5e; display: flex; flex-direction: column; gap: 4px; }
+#ticket small { color: #7b6a48; }
+#ticket b { font-family: var(--font-display); font-size: 28px; }
 #toast { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--brass);
   border-radius: 12px; padding: 10px 18px; font-size: 16px; text-align: center; pointer-events: none; }
 
@@ -102,6 +114,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       <div id="place"><small id="church"></small><b id="area"></b></div>
       <div id="hudBtns">
         <button class="pill" id="photoBtn" type="button">사진으로 보기</button>
+        <button class="pill" id="bagBtn" type="button">가방</button>
         <button class="pill icon" id="soundBtn" type="button"></button>
       </div>
     </div>
@@ -109,6 +122,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
     <div id="toast" hidden></div>
     <div id="dialog" hidden role="dialog" aria-live="polite"><span id="dName"></span><p id="dText"></p><span id="dMore">▼</span></div>
     <div id="menu" hidden role="menu"></div>
+    <div id="bag" hidden role="dialog" aria-label="가방"></div>
+    <div id="emotes" hidden aria-label="인사하기"></div>
   </div>
   <div id="pad">
     <div id="dpad" aria-label="방향">
@@ -128,6 +143,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
     <canvas id="titleArt" width="16" height="16"></canvas>
     <h1 id="tTitle"></h1>
     <p class="sub" id="tSub"></p>
+    <button class="pill" id="lookBtn" type="button">모습 바꾸기</button>
     <button class="big primary" id="startBtn" type="button">시작하기</button>
     <button class="big pill" id="newBtn" type="button" hidden>처음부터 하기</button>
     <a class="link" href="index.html">360도 사진 투어로 보기</a>
@@ -139,6 +155,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
     <h2 id="ivT"></h2>
     <ul id="ivLines"></ul>
     <p class="sub" id="ivNote"></p>
+    <div id="ticket" hidden><small id="tkTitle">음료 교환권</small><b id="tkDrink"></b><span id="tkChurch"></span><small id="tkNote"></small></div>
     <a class="big primary" id="ivMap" target="_blank" rel="noopener" hidden>지도 보기</a>
     <button class="big pill" id="ivClose" type="button">닫기</button>
   </div>
@@ -159,6 +176,7 @@ if (!G) { document.body.textContent = "config.js 에 game 설정이 없습니다
 var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 var TS = 16;
 var DX = { up: 0, down: 0, left: -1, right: 1 }, DY = { up: -1, down: 1, left: 0, right: 0 };
+var BACK = { up: "down", down: "up", left: "right", right: "left" };
 
 /* ---------- 그림: 바닥과 벽 (한 칸 16x16, 코드로 그림) ---------- */
 function paint(fn) {
@@ -168,10 +186,11 @@ function paint(fn) {
   return c;
 }
 function floor(R) { R(0, 0, 16, 16, "#dcd6c8"); R(0, 15, 16, 1, "#cdc6b5"); R(15, 0, 1, 16, "#cdc6b5"); }
+function wood(R) { R(0, 0, 16, 16, "#c9a271"); [0, 4, 8, 12].forEach(function (y, i) { R(0, y + 3, 16, 1, "#b48d5c"); R((i * 6 + 3) % 16, y, 1, 3, "#b48d5c"); }); }
 function wall(R) { R(0, 0, 16, 16, "#efe6d4"); R(0, 0, 16, 3, "#a2937b"); R(0, 13, 16, 3, "#d6c9b0"); }
 var TILE = {
   ".": floor,
-  ",": function (R) { R(0, 0, 16, 16, "#cfa871"); [0, 4, 8, 12].forEach(function (y, i) { R(0, y + 3, 16, 1, "#b8925c"); R((i * 6 + 3) % 16, y, 1, 3, "#b8925c"); }); },
+  ",": wood,
   "_": function (R) { R(0, 0, 16, 16, "#e6bcac"); R(0, 15, 16, 1, "#d3a594"); R(15, 0, 1, 16, "#d3a594"); },
   "#": wall,
   "w": function (R) { wall(R); R(3, 4, 10, 8, "#cfe6f2"); R(3, 4, 3, 8, "#f7f7f7"); R(10, 4, 3, 8, "#f7f7f7"); R(3, 11, 10, 1, "#b9a98d"); },
@@ -182,18 +201,18 @@ var TILE = {
     for (var i = 0; i < 7; i++) { R(1 + i * 2, 2 + (i % 2), 2, 5 - (i % 2), cs[i % 6]); R(1 + i * 2, 10 + ((i + 1) % 2), 2, 5 - ((i + 1) % 2), cs[(i + 3) % 6]); }
   },
   "h": function (R) { floor(R); R(0, 4, 16, 9, "#8a5a33"); R(0, 4, 16, 3, "#6b4426"); R(0, 12, 16, 1, "#5a381f"); },
-  "t": function (R) { floor(R); R(1, 2, 14, 12, "#b07a45"); R(1, 12, 14, 2, "#8a5a33"); R(2, 3, 12, 1, "#c99160"); },
-  "c": function (R) { floor(R); R(4, 3, 8, 3, "#a9b43d"); R(4, 6, 8, 6, "#c8d455"); R(4, 12, 1, 3, "#555"); R(11, 12, 1, 3, "#555"); },
-  "k": function (R) { floor(R); R(0, 3, 16, 13, "#2f333a"); R(0, 3, 16, 3, "#5b616b"); R(0, 15, 16, 1, "#1d2025"); },
+  "t": function (R) { wood(R); R(1, 2, 14, 12, "#9c6a3c"); R(1, 12, 14, 2, "#7a4f2a"); R(2, 3, 12, 1, "#b88250"); },
+  "c": function (R) { wood(R); R(4, 3, 8, 3, "#a9b43d"); R(4, 6, 8, 6, "#c8d455"); R(4, 12, 1, 3, "#555"); R(11, 12, 1, 3, "#555"); },
+  "k": function (R) { wood(R); R(0, 3, 16, 13, "#2f333a"); R(0, 3, 16, 3, "#5b616b"); R(0, 15, 16, 1, "#1d2025"); },
   "p": function (R) { floor(R); R(5, 11, 6, 5, "#a0522d"); R(3, 3, 10, 9, "#4f8a3c"); R(5, 1, 6, 4, "#5fa04a"); R(2, 6, 3, 4, "#3f7330"); R(11, 5, 3, 4, "#3f7330"); },
   "g": function (R) { floor(R); R(2, 0, 12, 16, "rgba(150,210,230,.55)"); R(0, 0, 2, 16, "#8fa9b6"); R(14, 0, 2, 16, "#8fa9b6"); R(7, 6, 2, 5, "#b0b0b0"); },
   "D": function (R) { floor(R); R(0, 0, 2, 16, "#7a4b2a"); R(14, 0, 2, 16, "#7a4b2a"); R(3, 4, 10, 8, "#a77852"); R(4, 5, 8, 6, "#b98a62"); },
   "E": function (R) { R(0, 0, 16, 16, "#6e6e69"); R(1, 2, 14, 14, "#c9c6bd"); R(7, 2, 2, 14, "#8d8a82"); R(1, 0, 14, 2, "#4a4a46"); R(12, 0, 2, 2, "#7fe0a0"); },
   "L": function (R) { R(0, 0, 16, 16, "#e6bcac"); R(3, 2, 10, 13, "#8a5a33"); R(3, 2, 10, 2, "#a8703f"); R(7, 6, 2, 7, "#e0c080"); R(5, 8, 6, 2, "#e0c080"); },
-  "s": function (R) { R(0, 0, 16, 16, "#bdb6a6"); for (var y = 3; y < 16; y += 4) R(0, y, 16, 1, "#8c8576"); },
+  "s": function (R) { R(0, 0, 16, 16, "#bdb6a6"); for (var y = 1; y < 16; y += 3) { R(0, y, 16, 1, "#8c8576"); R(0, y + 1, 16, 1, "#d2ccbe"); } },
   " ": function (R) { R(0, 0, 16, 16, "#20242b"); }
 };
-var SOLID = "#wxbhtckpELs ";
+var SOLID = "#wxbhtckpEL ";
 var tileCache = {};
 function tileImg(ch) { if (!TILE[ch]) ch = " "; return tileCache[ch] || (tileCache[ch] = paint(TILE[ch])); }
 
@@ -252,6 +271,9 @@ function personImg(look, dir, frame) {
     });
   }));
 }
+// 내 캐릭터 모습: 처음 시작할 때 고르고(모습 바꾸기) 저장한다. 함께 접속한 사람에게도 이 모습으로 보인다
+var HAIRS = ["#2b2b2b", "#5a3a22", "#8a5a2b", "#c9a24e", "#6b6b6b"];
+var SHIRTS = ["#e0ad4e", "#c0392b", "#3a6fb5", "#4f8a3c", "#8e5ea2", "#e07a9a", "#1f2a44"];
 
 /* ---------- 지도 ---------- */
 var maps = {};
@@ -259,7 +281,7 @@ Object.keys(G.maps).forEach(function (id) {
   var m = G.maps[id], w = 0;
   m.rows.forEach(function (r) { w = Math.max(w, r.length); });
   var objs = (m.objects || []).map(function (o) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); return c; });
-  maps[id] = { id: id, name: m.name || id, rows: m.rows, w: w, h: m.rows.length, areas: m.areas || [], objs: objs };
+  maps[id] = { id: id, name: m.name || id, rows: m.rows, w: w, h: m.rows.length, areas: m.areas || [], objs: objs, stairs: m.stairs };
 });
 function tileAt(m, x, y) { var r = m.rows[y]; return r && r[x] !== undefined ? r[x] : " "; }
 function objAt(m, x, y) { for (var i = 0; i < m.objs.length; i++) if (m.objs[i].x === x && m.objs[i].y === y) return m.objs[i]; return null; }
@@ -268,16 +290,22 @@ function areaAt(m, x, y) {
   for (var i = 0; i < m.areas.length; i++) { var a = m.areas[i]; if (x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h) return a; }
   return null;
 }
+function inBox(b, map, x, y) { return b && b.map === map && x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h; }
 
-/* ---------- 저장 (없어도 동작) ---------- */
-function load() { try { return JSON.parse(localStorage.getItem("tour.game") || "null"); } catch (e) { return null; } }
-function save() { try { localStorage.setItem("tour.game", JSON.stringify({ q: quest, map: P.map, x: P.x, y: P.y, dir: P.dir })); } catch (e) {} }
-
-/* ---------- 상태 ---------- */
+/* ---------- 상태와 저장 (저장이 안 되는 브라우저에서도 동작) ---------- */
 var S0 = G.start || { map: Object.keys(maps)[0], x: 1, y: 1, dir: "down" };
 var P = { map: S0.map, x: S0.x, y: S0.y, dir: S0.dir || "down", moving: false, fx: 0, fy: 0, t: 0, step: 0 };
-var quest = 0, QUESTS = G.quests || [];
-var PLAYER = G.player || { hair: "#2b2b2b", shirt: "#e0ad4e" };
+var QUESTS = G.quests || [], ITEMS = G.items || {};
+var st = freshState();
+function freshState() { return { q: 0, items: [], ev: {}, given: {}, ticket: null, look: { hair: HAIRS[0], shirt: SHIRTS[0] } }; }
+function load() { try { return JSON.parse(localStorage.getItem("tour.game2") || "null"); } catch (e) { return null; } }
+function save() {
+  try { localStorage.setItem("tour.game2", JSON.stringify({ st: st, map: P.map, x: P.x, y: P.y, dir: P.dir })); } catch (e) {}
+}
+function has(item) { return st.items.indexOf(item) >= 0; }
+function addItem(item) { if (!has(item)) st.items.push(item); updateBag(); emit("get:" + item); }
+function dropItem(item) { st.items = st.items.filter(function (i) { return i !== item; }); updateBag(); }
+
 var cv = $("cv"), ctx = cv.getContext("2d"), VW = 11, VH = 13;
 var STEP_MS = 210;
 
@@ -293,10 +321,18 @@ function resize() {
 window.addEventListener("resize", resize);
 
 /* ---------- 그리기 ---------- */
+function bubble(text, x, y) {
+  // 머리 위 말풍선 (함께 접속한 사람의 인사)
+  ctx.font = "6px sans-serif";
+  var w = Math.ceil(ctx.measureText(text).width) + 6;
+  ctx.fillStyle = "#fbf7ee"; ctx.fillRect(x + 8 - w / 2, y - 10, w, 9);
+  ctx.fillStyle = "#2b2418"; ctx.fillRect(x + 7, y - 1, 2, 2);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, x + 8, y - 5.5);
+}
 function draw() {
   var m = maps[P.map], k = P.moving ? P.t : 1;
   var px = P.moving ? P.fx + (P.x - P.fx) * k : P.x, py = P.moving ? P.fy + (P.y - P.fy) * k : P.y;
-  // 사람을 가운데에 두되, 지도가 화면보다 크면 지도 밖은 덜 보이게
+  // 내 캐릭터를 가운데에 두되, 지도가 화면보다 크면 지도 밖이 덜 보이게
   var cx = px + 0.5 - VW / 2, cy = py + 0.5 - VH / 2;
   if (m.w <= VW) cx = (m.w - VW) / 2; else cx = Math.max(-0.5, Math.min(m.w - VW + 0.5, cx));
   if (m.h <= VH) cy = (m.h - VH) / 2; else cy = Math.max(-0.5, Math.min(m.h - VH + 0.5, cy));
@@ -308,37 +344,60 @@ function draw() {
     ctx.drawImage(tileImg(tileAt(m, tx, ty)), ox + x * TS, oy + y * TS);
   }
   function at(wx, wy) { return [Math.round((wx - cx) * TS), Math.round((wy - cy) * TS)]; }
-  // 물건과 사람은 아래쪽에 있는 것을 나중에 그린다
+  function shadow(q) { ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(q[0] + 4, q[1] + 17, 8, 2); }
+  // 아래쪽에 있는 것을 나중에 그려서 겹침이 자연스럽게
   var list = m.objs.map(function (o) { return { y: o.y, o: o }; });
   list.push({ y: py, me: true });
+  if (net.inZone) Object.keys(others).forEach(function (id) { var o = others[id]; list.push({ y: o.dy, other: o }); });
   list.sort(function (a, b) { return a.y - b.y; });
+  var now = performance.now();
   list.forEach(function (it) {
     if (it.me) {
       // 걷는 동안 반 칸은 다리를 벌린 그림. 위아래로 걸을 때는 한 걸음마다 좌우를 뒤집어 양발을 번갈아 낸다
       var p = at(px, py - 0.25), fr = P.moving && k < 0.5 ? 1 : 0;
-      ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(p[0] + 4, p[1] + 17, 8, 2);
-      var img = personImg(PLAYER, P.dir, fr);
+      shadow(p);
+      var img = personImg(st.look, P.dir, fr);
       if (fr && P.step && (P.dir === "up" || P.dir === "down")) {
         ctx.save(); ctx.translate(p[0] + 16, p[1]); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0); ctx.restore();
       } else ctx.drawImage(img, p[0], p[1]);
+      if (myEmo && now < myEmo.until) bubble(myEmo.text, p[0], p[1]);
+      return;
+    }
+    if (it.other) {
+      var ot = it.other, q0 = at(ot.dx, ot.dy - 0.25), mv = Math.abs(ot.dx - ot.x) + Math.abs(ot.dy - ot.y) > 0.05;
+      shadow(q0);
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(personImg(ot.look, ot.dir, mv && (now / 120 | 0) % 2 ? 1 : 0), q0[0], q0[1]);
+      ctx.globalAlpha = 1;
+      if (ot.emo && now < ot.emoUntil) bubble(ot.emo, q0[0], q0[1]);
       return;
     }
     var o = it.o, q = at(o.x, o.y);
     if (o.type === "person") {
       q = at(o.x, o.y - 0.25);
-      ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(q[0] + 4, q[1] + 17, 8, 2);
+      shadow(q);
       ctx.drawImage(personImg(o.look, o.dir || "down", 0), q[0], q[1]);
-      if (o.invite && quest === QUESTS.length - 1) { ctx.fillStyle = "#e0ad4e"; ctx.fillRect(q[0] + 7, q[1] - 6, 2, 4); ctx.fillRect(q[0] + 7, q[1] - 1, 2, 2); }
+      if (o.cry && !st.given[o.id] && (now / 400 | 0) % 2) { ctx.fillStyle = "#5dade2"; ctx.fillRect(q[0] + 4, q[1] + 8, 1, 2); ctx.fillRect(q[0] + 11, q[1] + 9, 1, 2); }
+      if (questTarget(o)) { ctx.fillStyle = "#e0ad4e"; ctx.fillRect(q[0] + 7, q[1] - 7, 2, 4); ctx.fillRect(q[0] + 7, q[1] - 2, 2, 2); }
     } else {
       var img2 = thingImg(o.type === "inst" ? (o.sprite || INST_THING[o.id] || "keys") : (o.sprite || o.type));
       if (img2) ctx.drawImage(img2, q[0], q[1]);
     }
   });
 }
+// 지금 미션에서 찾아가야 할 사람 머리 위에 느낌표
+function questTarget(o) {
+  var q = QUESTS[st.q]; if (!q) return false;
+  if (q.until === "talk:" + o.id) return true;
+  return !!(o.give && q.until === "get:" + o.give.get && has(o.give.need));
+}
 
 /* ---------- 움직이기 ---------- */
 var held = [], last = 0, busyUntil = 0;
-function busy() { return !$("dialog").hidden || !$("menu").hidden || !$("overlay").hidden || !$("inviteV").hidden || !$("title").hidden || performance.now() < busyUntil; }
+function busy() {
+  return !$("dialog").hidden || !$("menu").hidden || !$("bag").hidden || !$("overlay").hidden || !$("inviteV").hidden ||
+    !$("title").hidden || performance.now() < busyUntil;
+}
 function tryMove(d) {
   P.dir = d;
   var m = maps[P.map], nx = P.x + DX[d], ny = P.y + DY[d];
@@ -346,7 +405,24 @@ function tryMove(d) {
   if (tileAt(m, nx, ny) === "E") { held = []; elevatorMenu(); return; }
   bumpSound();
 }
-function arrived() { updateHud(); save(); }
+function arrived() {
+  var m = maps[P.map];
+  if (tileAt(m, P.x, P.y) === "s" && m.stairs && maps[m.stairs.to]) return useStairs(m.stairs);
+  updateHud(); netPos(); save();
+}
+function useStairs(sx) {
+  held = []; busyUntil = performance.now() + 500;
+  $("cv").classList.add("fade"); stepsSound();
+  setTimeout(function () {
+    warp(sx.to, sx.x, sx.y, sx.dir || "down");
+    $("cv").classList.remove("fade");
+    if (sx.label) toast(sx.label);
+  }, reduce ? 0 : 350);
+}
+function warp(map, x, y, dir) {
+  P.map = map; P.x = x; P.y = y; P.dir = dir; P.moving = false;
+  updateHud(); netPos(); save(); emit("map:" + map);
+}
 function tick() {
   var now = performance.now(), dt = Math.min(250, now - (last || now)); last = now;
   if (P.moving) {
@@ -354,6 +430,11 @@ function tick() {
     if (P.t >= 1) { P.moving = false; P.t = 0; arrived(); }
   }
   if (!P.moving && held.length && !busy()) tryMove(held[held.length - 1]);
+  // 다른 사람 위치는 받은 곳으로 부드럽게 따라간다
+  Object.keys(others).forEach(function (id) {
+    var o = others[id], sp = dt / STEP_MS;
+    o.dx += Math.max(-sp, Math.min(sp, o.x - o.dx)); o.dy += Math.max(-sp, Math.min(sp, o.y - o.dy));
+  });
   draw();
 }
 function frame() { tick(); requestAnimationFrame(frame); }
@@ -361,31 +442,57 @@ function frame() { tick(); requestAnimationFrame(frame); }
 setInterval(function () { if (performance.now() - last > 120) tick(); }, 60);
 
 /* ---------- 살펴보기 (A) ---------- */
-function front() { return { x: P.x + DX[P.dir], y: P.y + DY[P.dir] }; }
 function interact() {
   if (!$("dialog").hidden) return advance();
   if (!$("menu").hidden) return menuPick();
+  if (!$("bag").hidden) { $("bag").hidden = true; return; }
   if (busy() || P.moving) return;
-  var f = front(), m = maps[P.map], o = objAt(m, f.x, f.y);
-  if (tileAt(m, f.x, f.y) === "E") return elevatorMenu();
-  if (!o) return;
-  blip();
+  var fx = P.x + DX[P.dir], fy = P.y + DY[P.dir], m = maps[P.map], o = objAt(m, fx, fy), ch = tileAt(m, fx, fy);
+  if (ch === "E") return elevatorMenu();
+  if (o) { blip(); return useObject(o); }
+  // 숨겨진 물건 찾기
+  var f = (G.finds || []).filter(function (f) { return f.map === P.map && f.x === fx && f.y === fy; })[0];
+  if (f && !has(f.item) && !st.ev["get:" + f.item]) {
+    blip();
+    return talk("", f.say || ["무언가를 찾았어요!"], function () { addItem(f.item); toast((ITEMS[f.item] || {}).name + " 을(를) 얻었어요!"); fanfare(); });
+  }
+  if (G.look && G.look[ch]) { blip(); talk("", [G.look[ch]], null); }
+}
+function useObject(o) {
   if (o.type === "person") {
-    o.dir = { up: "down", down: "up", left: "right", right: "left" }[P.dir];
-    var all = quest >= QUESTS.length, lines = (o.sayAt && (all ? o.sayAt.done : o.sayAt[String(quest)])) || o.say || ["..."];
-    talk(o.name || "", lines, function () {
+    o.dir = BACK[P.dir];
+    var done = st.q >= QUESTS.length, gv = o.give;
+    if (gv && !st.given[o.id] && has(gv.need)) {
+      return talk(o.name || "", o.sayGive || ["고마워요!"], function () {
+        dropItem(gv.need); st.given[o.id] = true;
+        if (gv.get) { addItem(gv.get); toast((ITEMS[gv.get] || {}).name + " 을(를) 받았어요!"); fanfare(); }
+        emit("talk:" + o.id); save();
+      });
+    }
+    var lines = (o.sayAt && (done ? o.sayAt.done : o.sayAt[String(st.q)])) ||
+      (gv && st.given[o.id] && o.sayAfter) || o.say || ["..."];
+    return talk(o.name || "", lines, function () {
       emit("talk:" + o.id);
-      if (o.invite && quest >= QUESTS.length) showInvite();
+      if (o.invite && st.q >= QUESTS.length) showInvite();
     });
-  } else if (o.type === "sign") talk("", o.say || [], null);
-  else if (o.type === "inst") openTour({ scene: o.scene || sceneHere(), open: "inst:" + o.id });
-  else if (o.type === "cafe") openTour({ scene: o.scene || sceneHere(), open: "cafe" });
+  }
+  if (o.type === "sign") return talk("", o.say || [], null);
+  if (o.type === "inst") return openTour({ scene: o.scene || sceneHere(), open: "inst:" + o.id });
+  if (o.type === "cafe") {
+    // 커피 쿠폰이 있으면 실제 교환권으로 바꾸는 카페 화면을, 이미 바꿨으면 교환권을 다시 보여준다
+    if (st.ticket) return showTicket();
+    if (has("coupon")) return talk("바리스타", ["커피 쿠폰이네요! 실제 음료 교환권으로 바꿔 드릴게요.", "드시고 싶은 음료를 골라 주세요."], function () {
+      openTour({ scene: o.scene || sceneHere(), open: "cafe" });
+    });
+    return talk("바리스타", G.cafeNeed || ["커피 쿠폰이 있으면 음료 교환권으로 바꿔 드려요.", "3층 어딘가에서 우는 아이를 도와주면 쿠폰을 받을지도 몰라요."], null);
+  }
 }
 
 /* ---------- 대화창 ---------- */
 var lines = [], li = 0, shown = 0, typing = null, after = null;
 function talk(name, ls, done) {
   lines = ls.slice(); li = 0; after = done; held = [];
+  if (!lines.length) { if (done) done(); return; }
   $("dName").textContent = name; $("dialog").hidden = false; type();
 }
 function type() {
@@ -411,7 +518,7 @@ var menuSel = 0, menuItems = [];
 function elevatorMenu() {
   var m = $("menu"); m.textContent = ""; held = [];
   var p = document.createElement("p"); p.textContent = "몇 층으로 갈까요?"; m.appendChild(p);
-  menuItems = (G.elevator || []).concat([{ label: "그만두기" }]);
+  menuItems = (G.elevator || []).filter(function (it) { return it.map !== P.map; }).concat([{ label: "그만두기" }]);
   menuItems.forEach(function (it, i) {
     var b = document.createElement("button"); b.type = "button"; b.textContent = it.label; b.setAttribute("role", "menuitem");
     b.addEventListener("click", function () { menuSel = i; menuPick(); });
@@ -427,29 +534,54 @@ function menuPick() {
   ding();
   $("cv").classList.add("fade");
   setTimeout(function () {
-    P.map = it.map; P.x = it.x; P.y = it.y; P.dir = it.dir || "down"; P.moving = false;
+    warp(it.map, it.x, it.y, it.dir || "down");
     $("cv").classList.remove("fade");
     toast("띵! " + it.label + "입니다");
-    updateHud(); save(); emit("map:" + it.map);
   }, reduce ? 0 : 450);
 }
 
-/* ---------- 할 일 ---------- */
+/* ---------- 미션 ---------- */
+// 일어난 일을 모두 기억해 두고, 지금 미션의 조건이 이미 일어났으면 바로 넘긴다 (순서를 앞질러 해도 막히지 않게)
 function emit(ev) {
-  if (quest < QUESTS.length && QUESTS[quest].until === ev) {
-    quest++; save(); updateQuest();
-    if (quest < QUESTS.length) toast("완료! 다음 할 일이 생겼어요"); else toast(G.doneText || "다 했어요!");
-    fanfare();
-  }
+  st.ev[ev] = true;
+  var moved = false;
+  while (st.q < QUESTS.length && st.ev[QUESTS[st.q].until]) { st.q++; moved = true; }
+  if (!moved) return;
+  save(); updateQuest();
+  toast(st.q < QUESTS.length ? "미션 완료! 다음 미션이 생겼어요" : (G.doneText || "미션 완료!"));
+  fanfare();
 }
 function updateQuest() {
   var q = $("quest"); q.textContent = "";
   if (!QUESTS.length) { q.hidden = true; return; }
-  var b = document.createElement("b"); b.textContent = quest < QUESTS.length ? (quest + 1) + "/" + QUESTS.length : "완료";
-  q.appendChild(b); q.appendChild(document.createTextNode(quest < QUESTS.length ? QUESTS[quest].text : (G.doneText || "")));
+  var b = document.createElement("b"); b.textContent = st.q < QUESTS.length ? (st.q + 1) + "/" + QUESTS.length : "완료";
+  q.appendChild(b); q.appendChild(document.createTextNode(st.q < QUESTS.length ? QUESTS[st.q].text : (G.doneText || "")));
 }
 var toastT = null;
 function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, 1800); }
+
+/* ---------- 가방 ---------- */
+function updateBag() {
+  var n = st.items.length + (st.ticket ? 1 : 0);
+  $("bagBtn").textContent = n ? "가방 " + n : "가방";
+}
+function openBag() {
+  var b = $("bag"); b.textContent = ""; held = [];
+  var h = document.createElement("h3"); h.textContent = "가방"; b.appendChild(h);
+  function row(title, desc, onClick) {
+    var it = document.createElement("button"); it.type = "button"; it.className = "item";
+    var t = document.createElement("b"); t.textContent = title; it.appendChild(t);
+    var d = document.createElement("small"); d.textContent = desc; it.appendChild(d);
+    it.addEventListener("click", onClick); b.appendChild(it);
+  }
+  st.items.forEach(function (id) { var it = ITEMS[id] || { name: id, desc: "" }; row(it.name, it.desc || "", function () {}); });
+  if (st.ticket) row("음료 교환권 · " + st.ticket.drink, "눌러서 보기. 카페에서 이 화면을 보여주세요", function () { b.hidden = true; showTicket(); });
+  if (!st.items.length && !st.ticket) { var p = document.createElement("p"); p.textContent = "아직 아무것도 없어요."; b.appendChild(p); }
+  var c = document.createElement("button"); c.type = "button"; c.className = "pill"; c.textContent = "닫기";
+  c.addEventListener("click", function () { b.hidden = true; busyUntil = performance.now() + 150; }); b.appendChild(c);
+  b.hidden = false;
+}
+$("bagBtn").addEventListener("click", function () { if ($("bag").hidden) openBag(); else $("bag").hidden = true; });
 
 /* ---------- 위쪽 표시 ---------- */
 function sceneHere() { var a = areaAt(maps[P.map], P.x, P.y); return a && a.scene; }
@@ -457,6 +589,7 @@ function updateHud() {
   var m = maps[P.map], a = areaAt(m, P.x, P.y);
   $("area").textContent = a ? a.name : m.name;
   $("photoBtn").hidden = !(a && a.scene && T.scenes && T.scenes[a.scene]);
+  netZone();
 }
 $("church").textContent = (T.church && T.church.name) || "";
 $("photoBtn").addEventListener("click", function () { var s = sceneHere(); if (s) openTour({ scene: s }); });
@@ -472,19 +605,95 @@ $("backBtn").addEventListener("click", closeTour);
 window.addEventListener("message", function (e) {
   if (e.source !== $("frame").contentWindow || !e.data || !e.data.tour) return;
   var t = e.data.tour;
-  if (t === "close") closeTour(); else emit(t);
+  if (t === "close") { closeTour(); if (pendingTicket) { pendingTicket = false; showTicket(); } return; }
+  if (t === "coupon" && has("coupon")) {
+    // 카페 화면에서 음료를 고르면 쿠폰을 쓰고 교환권이 생긴다
+    dropItem("coupon");
+    st.ticket = { drink: String(e.data.detail || "음료").slice(0, 20), at: Date.now() };
+    updateBag(); save(); pendingTicket = true;
+  }
+  emit(t);
 });
+var pendingTicket = false;
 
-/* ---------- 초대장 ---------- */
-function showInvite() {
-  var inv = T.invite; if (!inv) return;
-  $("ivT").textContent = inv.title || ""; $("ivNote").textContent = inv.note || "";
-  var ul = $("ivLines"); ul.textContent = "";
-  (inv.lines || []).forEach(function (t) { var li2 = document.createElement("li"); li2.textContent = t; ul.appendChild(li2); });
-  if (inv.map) { $("ivMap").href = inv.map; $("ivMap").hidden = false; }
+/* ---------- 초대장, 교환권 ---------- */
+function showCard(kind) {
+  var inv = T.invite || {}, C = T.cafe || {};
+  $("ticket").hidden = kind !== "ticket";
+  if (kind === "ticket") {
+    $("ivT").textContent = "음료 교환권"; $("ivLines").textContent = "";
+    $("tkTitle").textContent = (C.title || "카페") + " · " + (C.couponTitle || "음료 한 잔");
+    $("tkDrink").textContent = st.ticket.drink;
+    $("tkChurch").textContent = (T.church && T.church.name) || "";
+    $("tkNote").textContent = C.couponNote || "카페에서 이 화면을 보여주세요.";
+    $("ivNote").textContent = "가방에서 언제든 다시 볼 수 있어요.";
+    $("ivMap").hidden = true;
+  } else {
+    $("ivT").textContent = inv.title || ""; $("ivNote").textContent = inv.note || "";
+    var ul = $("ivLines"); ul.textContent = "";
+    (inv.lines || []).forEach(function (t) { var li2 = document.createElement("li"); li2.textContent = t; ul.appendChild(li2); });
+    if (inv.map) { $("ivMap").href = inv.map; $("ivMap").hidden = false; }
+  }
   $("inviteV").hidden = false; $("ivClose").focus();
 }
+function showInvite() { showCard("invite"); }
+function showTicket() { if (st.ticket) showCard("ticket"); }
 $("ivClose").addEventListener("click", function () { $("inviteV").hidden = true; busyUntil = performance.now() + 150; });
+
+/* ---------- 함께하기: 정해진 구역(예: 4층 본당)에 있을 때만 서버에 연결해 서로의 위치를 본다 ----------
+   서버 주소가 없거나 연결이 안 되면 조용히 혼자 하기로 동작한다. 이름, 채팅 없이 모습과 위치, 정해진 인사말만 오간다. */
+var MULTI = G.multi || {}, net = { ws: null, inZone: false, retry: 0, timer: null, me: null }, others = {}, myEmo = null;
+function netZone() {
+  var inside = !!MULTI.server && inBox(MULTI.zone, P.map, P.x, P.y);
+  if (inside === net.inZone) return;
+  net.inZone = inside;
+  if (inside) netConnect(); else netClose();
+  $("emotes").hidden = !inside;
+}
+function netConnect() {
+  if (net.ws || !net.inZone) return;
+  var url = MULTI.server.replace(/\/$/, "") + "/room/" + encodeURIComponent(MULTI.room || "main");
+  var ws;
+  try { ws = new WebSocket(url); } catch (e) { return netRetry(); }
+  net.ws = ws;
+  ws.onopen = function () { net.retry = 0; netPos(); };
+  ws.onmessage = function (e) {
+    var m; try { m = JSON.parse(e.data); } catch (x) { return; }
+    if (m.t === "hello") { net.me = m.id; others = {}; (m.others || []).forEach(addOther); }
+    else if (m.t === "pos") addOther(m);
+    else if (m.t === "leave") delete others[m.id];
+    else if (m.t === "emo" && others[m.id]) { others[m.id].emo = MULTI.emotes[m.e] || ""; others[m.id].emoUntil = performance.now() + 2500; }
+    updateCount();
+  };
+  ws.onclose = function () { net.ws = null; others = {}; updateCount(); if (net.inZone) netRetry(); };
+  ws.onerror = function () { try { ws.close(); } catch (x) {} };
+}
+function netRetry() { clearTimeout(net.timer); net.retry = Math.min(net.retry + 1, 6); net.timer = setTimeout(netConnect, 1000 * Math.pow(2, net.retry)); }
+function netClose() { clearTimeout(net.timer); if (net.ws) { var w = net.ws; net.ws = null; w.onclose = null; try { w.close(); } catch (e) {} } others = {}; updateCount(); }
+function addOther(m) {
+  if (!m || m.id === net.me) return;
+  var o = others[m.id];
+  if (!o) o = others[m.id] = { dx: m.x, dy: m.y };
+  o.x = m.x; o.y = m.y; o.dir = m.dir || "down"; o.look = m.look || {};
+}
+function netSend(obj) { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(obj)); }
+function netPos() { if (net.inZone) netSend({ t: "pos", x: P.x, y: P.y, dir: P.dir, look: st.look }); }
+// 위치 메시지가 하나 빠지더라도(서버가 너무 잦은 메시지는 버림) 2초 안에 맞춰지도록 지금 위치를 다시 보낸다
+setInterval(function () { if (net.inZone && !P.moving) netPos(); }, 2000);
+function updateCount() {
+  var n = Object.keys(others).length;
+  $("place").title = n ? "함께 있는 사람 " + n + "명" : "";
+  var a = $("area"), base = areaAt(maps[P.map], P.x, P.y);
+  a.textContent = (base ? base.name : maps[P.map].name) + (net.inZone && n ? " · 함께 " + n + "명" : "");
+}
+(MULTI.emotes || []).forEach(function (text, i) {
+  var b = document.createElement("button"); b.type = "button"; b.className = "pill"; b.textContent = text;
+  b.addEventListener("click", function () {
+    if (myEmo && performance.now() < myEmo.until - 1500) return;   // 너무 자주 못 보내게
+    myEmo = { text: text, until: performance.now() + 2500 }; netSend({ t: "emo", e: i }); blip();
+  });
+  $("emotes").appendChild(b);
+});
 
 /* ---------- 조작: 방향 패드, A, 키보드 ---------- */
 function press(d) {
@@ -504,11 +713,11 @@ A.addEventListener("pointerdown", function (e) { e.preventDefault(); A.classList
 var KEY = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right" };
 window.addEventListener("keydown", function (e) {
   if (!$("title").hidden || !$("overlay").hidden) return;
-  if (!$("inviteV").hidden) { if (e.key === "Escape") $("ivClose").click(); return; }
+  if (!$("inviteV").hidden) { if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); $("ivClose").click(); } return; }
   var d = KEY[e.key];
   if (d) { e.preventDefault(); if (!e.repeat) press(d); return; }
   if (e.key === " " || e.key === "Enter" || e.key === "z" || e.key === "Z") { e.preventDefault(); if (!e.repeat) interact(); }
-  if (e.key === "Escape" && !$("menu").hidden) { menuSel = menuItems.length - 1; menuPick(); }
+  if (e.key === "Escape") { if (!$("menu").hidden) { menuSel = menuItems.length - 1; menuPick(); } else $("bag").hidden = true; }
 });
 window.addEventListener("keyup", function (e) { var d = KEY[e.key]; if (d) release(d); });
 window.addEventListener("blur", function () { held = []; });
@@ -544,6 +753,7 @@ function bumpSound() {   // 벽에 부딪히는 소리. 계속 밀고 있으면 
   var a = audio(); if (!a || a.currentTime - lastBump < 0.3) return;
   lastBump = a.currentTime; beep(40, a.currentTime, 0.08, "square", 0.05);
 }
+function stepsSound() { var a = audio(); if (!a) return; [55, 52, 55, 52].forEach(function (m, i) { beep(m, a.currentTime + i * 0.07, 0.05, "triangle", 0.12); }); }
 function ding() { var a = audio(); if (!a) return; beep(88, a.currentTime, 0.5, "sine", 0.12); beep(84, a.currentTime + 0.25, 0.8, "sine", 0.12); }
 function fanfare() { var a = audio(); if (!a) return; [72, 76, 79, 84].forEach(function (m, i) { beep(m, a.currentTime + i * 0.09, i === 3 ? 0.35 : 0.08, "pulse", 0.08); }); }
 
@@ -616,26 +826,32 @@ document.addEventListener("visibilitychange", function () { if (actx) { if (docu
 /* ---------- 시작 ---------- */
 document.title = (G.title || "교회 탐험") + (T.church && T.church.name ? " · " + T.church.name : "");
 $("tTitle").textContent = G.title || "교회 탐험"; $("tSub").textContent = G.subtitle || "";
-var art = $("titleArt").getContext("2d"); art.drawImage(personImg(PLAYER, "down", 0), 0, 0);
 var saved = load();
-if (saved && saved.q > 0) { $("startBtn").textContent = "이어서 하기"; $("newBtn").hidden = false; }
+if (saved && saved.st) st = saved.st;
+if (!st.look) st.look = { hair: HAIRS[0], shirt: SHIRTS[0] };
+function drawTitleArt() { var art = $("titleArt").getContext("2d"); art.clearRect(0, 0, 16, 16); art.drawImage(personImg(st.look, "down", 0), 0, 0); }
+drawTitleArt();
+$("lookBtn").addEventListener("click", function () {
+  // 옷 색을 먼저 바꾸고, 한 바퀴 돌면 머리색도 바꾼다
+  var si = (SHIRTS.indexOf(st.look.shirt) + 1) % SHIRTS.length, hi = HAIRS.indexOf(st.look.hair);
+  if (si === 0) hi = (hi + 1) % HAIRS.length;
+  st.look = { hair: HAIRS[Math.max(0, hi)], shirt: SHIRTS[si] }; drawTitleArt(); blip();
+});
+if (saved && saved.st && (saved.st.q > 0 || saved.st.items.length)) { $("startBtn").textContent = "이어서 하기"; $("newBtn").hidden = false; }
 function begin(fresh) {
-  if (!fresh && saved && maps[saved.map]) { quest = Math.min(saved.q || 0, QUESTS.length); P.map = saved.map; P.x = saved.x; P.y = saved.y; P.dir = saved.dir || "down"; }
-  else { quest = 0; P.map = S0.map; P.x = S0.x; P.y = S0.y; P.dir = S0.dir || "down"; }
+  if (fresh) { var look = st.look; st = freshState(); st.look = look; }
+  if (!fresh && saved && maps[saved.map]) { P.map = saved.map; P.x = saved.x; P.y = saved.y; P.dir = saved.dir || "down"; }
+  else { P.map = S0.map; P.x = S0.x; P.y = S0.y; P.dir = S0.dir || "down"; }
   $("title").hidden = true; audio();
   if (pref() !== "off") chipStart(); else soundBtn();
-  updateHud(); updateQuest(); save();
-  emit("map:" + P.map);
-  if (fresh || !saved) {
-    var greet = G.intro || ["방향 버튼으로 걸어 다니고, 사람이나 물건 앞에서 A 를 눌러 보세요.", "위에 나오는 할 일을 따라가면 교회를 한 바퀴 둘러볼 수 있어요."];
-    talk("", greet, null);
-  }
+  updateHud(); updateQuest(); updateBag(); save();
+  if (fresh || !saved) talk("", G.intro || ["방향 버튼으로 걸어 다니고, 사람이나 물건 앞에서 A 를 눌러 보세요."], null);
 }
 $("startBtn").addEventListener("click", function () { begin(false); });
-$("newBtn").addEventListener("click", function () { saved = null; begin(true); });
-soundBtn(); resize(); updateHud(); updateQuest();
+$("newBtn").addEventListener("click", function () { begin(true); });
+soundBtn(); resize(); updateHud(); updateQuest(); updateBag();
 requestAnimationFrame(frame);
-if (location.hash === "#debug") window.GAME = { P: P, held: function () { return held; }, busy: busy, quest: function () { return quest; } };   // 자동 시험용
+if (location.hash === "#debug") window.GAME = { P: P, st: function () { return st; }, busy: busy, others: function () { return others; }, net: net };   // 자동 시험용
 })();
 </script>
 </body>

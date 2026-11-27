@@ -6,6 +6,7 @@
 
 ## 규칙
 - 정적 파일만 쓴다. 빌드 도구, 프레임워크, npm 의존성, 서버, DB 를 추가하지 않는다.
+  예외: 도트 게임의 "함께하기" 서버(`server/`, Cloudflare Worker). 위치와 인사만 주고받고 저장하지 않는다. 없어도 게임이 동작해야 한다.
 - `index.html` 은 모든 교회가 같이 쓰는 엔진이다. 특정 교회의 이름, 문구, 좌표, 사진 경로를 넣지 않는다.
   예외: 맨 위의 공유 미리보기(`og:`) 메타 태그. 미리보기 수집기는 JS 를 실행하지 않아 `config.js` 로 뺄 수 없다.
 - 교회별 내용은 `config.js` 와 `photos/` 에만 둔다. 새 기능은 `config.js` 에서 켜고 끌 수 있게 만들고, 설정이 없어도 동작하는 기본값을 둔다.
@@ -38,5 +39,8 @@ python3 -m http.server 8000
 - 그림: `TILE`(바닥, 벽), `THING`(악기, 물건), `personImg`(사람 16x16 도트, `POSE`)
 - 지도, 움직임: `maps`, `walkable`, `tryMove`, `tick`(rAF + 타이머 보조), `draw`
 - 살펴보기, 대화, 엘리베이터: `interact`, `talk`/`advance`, `elevatorMenu`/`menuPick`
-- 할 일: `emit`, `updateQuest`. 투어 화면 띄우기: `openTour`, `message` 수신
+- 미션, 아이템: `emit`(일어난 일 기억, 앞질러도 진행), `updateQuest`, `addItem`/`dropItem`, `useObject`(사람 give, 카페 교환권), 가방 `openBag`
+- 층 이동: `tryMove`(E 엘리베이터), `arrived`/`useStairs`(s 계단), `warp`
+- 투어 화면 띄우기: `openTour`, `message` 수신 (coupon 이면 교환권 `st.ticket`)
+- 함께하기: `netZone`(구역 안에서만 연결), `netConnect`/`netPos`/2초 재전송, `others`. 서버는 `server/worker.js`
 - 소리: `chipStart`/`chipPump`(bgm 을 사각파로), `blip`, `ding`, `fanfare`

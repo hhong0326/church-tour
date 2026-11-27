@@ -1,0 +1,17 @@
+# 도트 게임 "함께하기" 서버 설정 (Cloudflare Workers 무료 플랜으로 동작)
+# 배포: 이 폴더에서  npx wrangler login  후  npx wrangler deploy
+name = "church-tour-room"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# 접속을 허용할 사이트 주소. 비우면 어디서나 접속할 수 있습니다.
+ALLOWED_ORIGINS = "https://hhong0326.github.io,http://localhost:8080"
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
