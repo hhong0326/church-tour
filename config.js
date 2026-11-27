@@ -297,7 +297,7 @@ window.TOUR = {
       { map: "4f", x: 11, y: 18, item: "candy", say: ["책장 위에 말랑 캔디가 숨어 있어요!"] },
     ],
     multi: {
-      server: "",                     // 배포한 실시간 서버 주소 (예: wss://church-tour-room.아이디.workers.dev). 비우면 혼자 하기
+      server: "wss://church-tour-room.yeim.workers.dev",   // 배포한 실시간 서버 주소 (예: wss://church-tour-room.아이디.workers.dev). 비우면 혼자 하기
       room: "yeim",
       zone: { map: "4f", x: 0, y: 0, w: 22, h: 17, name: "본당" },   // 이 안에 있을 때만 서로 보임
       emotes: ["반가워요", "아멘", "할렐루야", "👏"],
