@@ -271,6 +271,11 @@ var ICON = {
     R(5, 5, 6, 5, "#ffffff"); R(5, 5, 6, 1, "#6b4426"); R(11, 6, 1, 2, "#ffffff"); R(4, 10, 8, 1, "#b89a5e");
     R(6, 2, 1, 2, "#c9a96a"); R(9, 2, 1, 2, "#c9a96a"); R(4, 12, 8, 1, "#c0392b");
   },
+  candy: function (R, g, col) {
+    col = col || "#e8506a";
+    R(1, 6, 3, 5, "#2a2420"); R(12, 6, 3, 5, "#2a2420"); R(2, 7, 2, 3, col); R(12, 7, 2, 3, col);
+    R(4, 4, 8, 9, "#2a2420"); R(5, 5, 6, 7, col); R(6, 6, 2, 2, "#ffd6de"); R(5, 10, 6, 1, shade(col, 0.75));
+  },
   box: function (R, g, col) { col = col || "#c9a271"; R(2, 4, 12, 10, "#2a2420"); R(3, 5, 10, 8, col); R(7, 5, 2, 8, shade(col, 0.7)); }
 };
 var iconCache = {};
@@ -369,13 +374,18 @@ var S0 = G.start || { map: Object.keys(maps)[0], x: 1, y: 1, dir: "down" };
 var P = { map: S0.map, x: S0.x, y: S0.y, dir: S0.dir || "down", moving: false, fx: 0, fy: 0, t: 0, step: 0 };
 var QUESTS = G.quests || [], ITEMS = G.items || {};
 var st = freshState();
-function freshState() { return { q: 0, items: [], ev: {}, given: {}, ticket: null, look: { hair: HAIRS[0], shirt: SHIRTS[0] } }; }
+function freshState() { return { q: 0, items: [], ev: {}, given: {}, found: {}, counts: {}, ticket: null, look: { hair: HAIRS[0], shirt: SHIRTS[0] } }; }
 function load() { try { return JSON.parse(localStorage.getItem("tour.game2") || "null"); } catch (e) { return null; } }
 function save() {
   try { localStorage.setItem("tour.game2", JSON.stringify({ st: st, map: P.map, x: P.x, y: P.y, dir: P.dir })); } catch (e) {}
 }
 function has(item) { return st.items.indexOf(item) >= 0; }
-function addItem(item) { if (!has(item)) st.items.push(item); updateBag(); emit("get:" + item); }
+function addItem(item) {
+  if (!has(item)) st.items.push(item);
+  if ((ITEMS[item] || {}).total) st.counts[item] = (st.counts[item] || 0) + 1;   // 여러 개 모으는 아이템 (예: 사탕)
+  updateBag(); emit("get:" + item);
+}
+function findKey(f) { return f.map + ":" + f.x + "," + f.y; }
 function dropItem(item) { st.items = st.items.filter(function (i) { return i !== item; }); updateBag(); }
 
 var cv = $("cv"), ctx = cv.getContext("2d"), VW = 11, VH = 13;
@@ -416,6 +426,14 @@ function draw() {
     ctx.drawImage(tileImg(tileKey(m, tx, ty)), ox + x * TS, oy + y * TS);
   }
   if (m.stairsBox) drawStairsSign(m, cx, cy);
+  // 모으는 물건(사탕 등)이 숨은 곳은 가끔 반짝인다
+  var tw = performance.now() / 1000;
+  (G.finds || []).forEach(function (f, i) {
+    if (f.map !== m.id || !(ITEMS[f.item] || {}).total || st.found[findKey(f)]) return;
+    if (reduce || ((tw + i * 0.7) % 2.4) > 0.5) return;
+    var sx = Math.round((f.x - cx) * TS) + 11, sy = Math.round((f.y - cy) * TS) + 2;
+    ctx.fillStyle = "#fffbe6"; ctx.fillRect(sx, sy - 2, 1, 5); ctx.fillRect(sx - 2, sy, 5, 1);
+  });
   function at(wx, wy) { return [Math.round((wx - cx) * TS), Math.round((wy - cy) * TS)]; }
   function shadow(q) { ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(q[0] + 4, q[1] + 17, 8, 2); }
   // 아래쪽에 있는 것을 나중에 그려서 겹침이 자연스럽게
@@ -544,11 +562,26 @@ function interact() {
   if (o) { blip(); return useObject(o); }
   // 숨겨진 물건 찾기
   var f = (G.finds || []).filter(function (f) { return f.map === P.map && f.x === fx && f.y === fy; })[0];
-  if (f && !has(f.item) && !st.ev["get:" + f.item]) {
+  var many = f && (ITEMS[f.item] || {}).total;
+  if (f && !st.found[findKey(f)] && (many || (!has(f.item) && !st.ev["get:" + f.item]))) {
     blip();
-    return talk("", f.say || ["무언가를 찾았어요!"], function () { addItem(f.item); toast((ITEMS[f.item] || {}).name + " 을(를) 얻었어요!", f.item); fanfare(); });
+    return talk("", f.say || ["무언가를 찾았어요!"], function () {
+      st.found[findKey(f)] = true; addItem(f.item);
+      var it = ITEMS[f.item] || {}, n = st.counts[f.item] || 0;
+      if (many) toast(n >= it.total ? (it.doneText || it.name + " 을(를) 모두 모았어요!") : it.name + " " + n + "/" + it.total, f.item);
+      else toast(it.name + " 을(를) 얻었어요!", f.item);
+      fanfare(); save();
+    });
   }
-  if (G.look && G.look[ch]) { blip(); talk("", [G.look[ch]], null); }
+  if (G.look && G.look[ch]) { blip(); talk("", [hintFor(fx, fy) || G.look[ch]], null); }
+}
+// 지금 찾아야 하는 물건이 이 층에 있으면, 살펴본 곳이 얼마나 가까운지 알려 준다 (finds 의 hint: [먼 곳, 가까운 곳, 바로 옆])
+function hintFor(x, y) {
+  var q = QUESTS[st.q]; if (!q) return "";
+  var f = (G.finds || []).filter(function (f) { return f.hint && f.map === P.map && q.until === "get:" + f.item && !st.found[findKey(f)]; })[0];
+  if (!f) return "";
+  var d = Math.abs(f.x - x) + Math.abs(f.y - y);
+  return f.hint[d <= 2 ? 2 : d <= 5 ? 1 : 0] || "";
 }
 function useObject(o) {
   if (o.type === "person") {
@@ -670,7 +703,7 @@ function openBag() {
     var d = document.createElement("small"); d.textContent = desc; tx.appendChild(d);
     it.addEventListener("click", onClick); b.appendChild(it);
   }
-  st.items.forEach(function (id) { var it = ITEMS[id] || { name: id, desc: "" }; row(it.name, it.desc || "", function () {}, id); });
+  st.items.forEach(function (id) { var it = ITEMS[id] || { name: id, desc: "" }; row(it.name + (it.total ? " " + (st.counts[id] || 0) + "/" + it.total : ""), it.desc || "", function () {}, id); });
   if (st.ticket) row("음료 교환권 · " + st.ticket.drink, "눌러서 보기. 카페에서 이 화면을 보여주세요", function () { b.hidden = true; showTicket(); }, "ticket");
   if (!st.items.length && !st.ticket) { var p = document.createElement("p"); p.textContent = "아직 아무것도 없어요."; b.appendChild(p); }
   var c = document.createElement("button"); c.type = "button"; c.className = "pill"; c.textContent = "닫기";
@@ -928,7 +961,7 @@ document.addEventListener("visibilitychange", function () { if (actx) { if (docu
 document.title = (G.title || "교회 탐험") + (T.church && T.church.name ? " · " + T.church.name : "");
 $("tTitle").textContent = G.title || "교회 탐험"; $("tSub").textContent = G.subtitle || "";
 var saved = load();
-if (saved && saved.st) st = saved.st;
+if (saved && saved.st) { st = saved.st; st.found = st.found || {}; st.counts = st.counts || {}; }
 if (!st.look) st.look = { hair: HAIRS[0], shirt: SHIRTS[0] };
 function drawTitleArt() { var art = $("titleArt").getContext("2d"); art.clearRect(0, 0, 16, 16); art.drawImage(personImg(st.look, "down", 0), 0, 0); }
 drawTitleArt();
