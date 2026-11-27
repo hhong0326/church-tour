@@ -32,3 +32,11 @@ python3 -m http.server 8000
 - 소리: `noteOn`(건반), `ksBuffer`/`pluck`(줄), `drum`
 - 배경 음악: `parseTimed`, `bgmStart`, `bgmPump`(미리 예약), `bgmNote`, `bgmDuck`(악기 열 때 줄임)
 - 카페: `openCafe`
+- 다른 페이지에 넣기: `#embed` (`Q`, `notify`, `userClose`). game.html 이 iframe 으로 쓴다
+
+## 도트 게임 (game.html 의 script 안)
+- 그림: `TILE`(바닥, 벽), `THING`(악기, 물건), `personImg`(사람 16x16 도트, `POSE`)
+- 지도, 움직임: `maps`, `walkable`, `tryMove`, `tick`(rAF + 타이머 보조), `draw`
+- 살펴보기, 대화, 엘리베이터: `interact`, `talk`/`advance`, `elevatorMenu`/`menuPick`
+- 할 일: `emit`, `updateQuest`. 투어 화면 띄우기: `openTour`, `message` 수신
+- 소리: `chipStart`/`chipPump`(bgm 을 사각파로), `blip`, `ding`, `fanfare`

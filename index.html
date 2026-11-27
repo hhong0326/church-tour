@@ -257,6 +257,14 @@ if (!T) { document.body.textContent = "config.js 를 불러오지 못했습니�
 var RAD = Math.PI / 180;
 var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 var editMode = location.hash === "#edit";
+/* 다른 페이지 안에 넣기 (#embed): 게임 화면(game.html)이 이 투어를 iframe 으로 띄울 때 쓴다.
+   #embed&scene=stage       그 공간의 360도 사진만 (첫 화면, 공간 목록, 초대장, 배경 음악 없음)
+   #embed&open=inst:piano   악기 연주 창을 바로 연다. open=cafe 는 카페
+   부모 페이지에 알리는 것: {tour:"close"} 창을 닫음, {tour:"played"} 연주함, {tour:"song"} 한 곡 완주, {tour:"coupon"} 쿠폰 받음 */
+var Q = {};
+location.hash.slice(1).split("&").forEach(function (kv) { var i = kv.indexOf("="); if (kv) Q[i < 0 ? kv : kv.slice(0, i)] = i < 0 ? "" : decodeURIComponent(kv.slice(i + 1)); });
+var embed = "embed" in Q && window.parent !== window;
+function notify(type) { if (embed) window.parent.postMessage({ tour: type }, "*"); }
 
 /* ---------- WebGL 파노라마 ---------- */
 var canvas = $("view"), spotsEl = $("spots");
@@ -410,7 +418,7 @@ canvas.addEventListener("wheel", function (e) {
   zoom = Math.max(35, Math.min(100, zoom + e.deltaY * 0.05)); dirty = true;
 }, { passive: false });
 window.addEventListener("keydown", function (e) {
-  if (e.key === "Escape") { closeAll(); return; }
+  if (e.key === "Escape") { userClose(); return; }
   if (openV) { pianoKey(e, true); return; }
   var m = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
   if (!m) return;
@@ -556,13 +564,14 @@ function go(id, from) {
 /* ---------- 창 열고 닫기 ---------- */
 var openV = null;
 function show(el) { closeAll(); el.hidden = false; openV = el; if (el.id === "instV") bgmDuck(true); var x = el.querySelector("[data-close]"); if (x) x.focus(); }
+function userClose() { var was = openV; closeAll(); if (was && embed && Q.open) notify("close"); }
 function closeAll() {
   ["infoV", "instV", "cafeV"].forEach(function (id) { $(id).hidden = true; });
   openV = null; bgmDuck(false);
 }
 document.querySelectorAll(".veil").forEach(function (v) {
   v.addEventListener("click", function (e) {
-    if (v.id !== "intro" && (e.target === v || e.target.closest("[data-close]"))) closeAll();
+    if (v.id !== "intro" && (e.target === v || e.target.closest("[data-close]"))) userClose();
   });
 });
 function showInfo(title, body, lines, link) {
@@ -796,7 +805,7 @@ function renderKeys(body) {
   function mark() {
     Object.keys(keyEls).forEach(function (k) { keyEls[k].classList.remove("next"); });
     if (!song) { stat.textContent = "곡을 고르면 칠 건반에 불이 켜집니다."; return; }
-    if (pos >= song.notes.length) { stat.textContent = "끝까지 연주했어요! 곡 이름을 다시 누르면 처음부터 시작합니다."; return; }
+    if (pos >= song.notes.length) { stat.textContent = "끝까지 연주했어요! 곡 이름을 다시 누르면 처음부터 시작합니다."; notify("song"); return; }
     keyEls[song.notes[pos]].classList.add("next");
     stat.textContent = "불이 켜진 건반을 누르세요 · " + pos + " / " + song.notes.length;
   }
@@ -870,7 +879,7 @@ function songRow(body, seqOf, freeText, onPick) {
   });
   st.say = function (label) {
     if (!st.song) stat.textContent = freeText;
-    else if (st.pos >= st.song.seq.length) stat.textContent = "끝까지 연주했어요! 곡 이름을 다시 누르면 처음부터 시작합니다.";
+    else if (st.pos >= st.song.seq.length) { stat.textContent = "끝까지 연주했어요! 곡 이름을 다시 누르면 처음부터 시작합니다."; notify("song"); }
     else stat.textContent = "다음: " + label + " · " + st.pos + " / " + st.song.seq.length;
   };
   st.next = function () { return st.song && st.pos < st.song.seq.length ? st.song.seq[st.pos] : null; };
@@ -1003,6 +1012,7 @@ function openInst(id) {
   var img = $("instImg"); img.hidden = true;
   if (inst.image) { img.onload = function () { img.hidden = false; }; img.onerror = function () { img.hidden = true; }; img.alt = inst.name + " 사진"; img.src = inst.image; }
   var body = $("instBody"); body.textContent = "";
+  if (embed) body.addEventListener("pointerdown", function once() { body.removeEventListener("pointerdown", once); notify("played"); });
   if (inst.kind === "keys") renderKeys(body);
   else if (inst.kind === "drums") renderDrums(body);
   else renderStrings(body, inst);
@@ -1133,7 +1143,7 @@ function resetCafe() {
     requestAnimationFrame(function () { requestAnimationFrame(function () { $("brew").firstElementChild.style.width = "100%"; }); });
     setTimeout(function () {
       $("brewing").hidden = true; $("coupon").hidden = false; $("again").hidden = false;
-      $("cpTitle").textContent = C.couponTitle || ""; $("cpDrink").textContent = name;
+      $("cpTitle").textContent = C.couponTitle || ""; $("cpDrink").textContent = name; notify("coupon");
       $("cpChurch").textContent = T.church.name; $("cpNote").textContent = C.couponNote || "";
     }, reduce ? 300 : 1400);
   });
@@ -1181,10 +1191,20 @@ $("startBtn").addEventListener("click", function () {
   if (bgmPref() !== "off") bgmStart();
 });
 if (editMode) { $("intro").hidden = true; $("edit").hidden = false; auto = false; }
+if (embed) {
+  $("intro").hidden = true; $("rooms").hidden = true; $("inviteBtn").hidden = true; $("bgmBtn").hidden = true;
+  if (Q.open) $("hint").hidden = true;
+}
 
 resize();
-var first = T.scenes[T.start] ? T.start : Object.keys(T.scenes)[0];
-function begin() { go(first); requestAnimationFrame(tick); }
+var first = embed && T.scenes[Q.scene] ? Q.scene : T.scenes[T.start] ? T.start : Object.keys(T.scenes)[0];
+function begin() {
+  go(first); requestAnimationFrame(tick);
+  if (embed && Q.open) {
+    if (Q.open === "cafe") openCafe();
+    else if (Q.open.indexOf("inst:") === 0) openInst(Q.open.slice(5));
+  }
+}
 if (document.fonts && document.fonts.ready) {
   var started = false, once = function () { if (!started) { started = true; begin(); } };
   document.fonts.load("700 84px 'Gowun Batang'").then(once, once); setTimeout(once, 1500);

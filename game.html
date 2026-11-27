@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>교회 탐험</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+/* 도트 게임 화면. 지도는 작은 캔버스에 그리고 CSS 로 키운다(image-rendering: pixelated). */
+:root {
+  --ink: #101a24; --panel: rgba(16, 26, 36, .9); --line: rgba(246, 240, 228, .25);
+  --paper: #f6f0e4; --muted: #b9c0c6; --brass: #e0ad4e; --brass-ink: #2a1c05;
+  --font-display: "Gowun Batang", serif; --font-body: "Gowun Dodum", "Apple SD Gothic Neo", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: var(--ink); color: var(--paper); font-family: var(--font-body); overflow: hidden;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+#app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+#screen { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #20242b; }
+#cv { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); image-rendering: pixelated; image-rendering: crisp-edges; transition: opacity .25s; }
+#cv.fade { opacity: 0; }
+
+#hud { position: absolute; left: 0; right: 0; top: 0; padding: 10px 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+  background: linear-gradient(rgba(16,26,36,.85), rgba(16,26,36,0)); pointer-events: none; }
+#hud > * { pointer-events: auto; }
+#place small { display: block; color: var(--muted); font-size: 12px; }
+#place b { font-family: var(--font-display); font-size: 19px; }
+#hudBtns { display: flex; gap: 6px; }
+.pill { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 7px 13px; font-size: 14px; white-space: nowrap; }
+.pill.on, .primary { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); font-weight: 700; }
+.icon { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; }
+.icon svg { width: 18px; height: 18px; }
+#quest { position: absolute; left: 12px; right: 12px; top: 62px; margin: auto; width: fit-content; max-width: calc(100% - 24px);
+  background: var(--panel); border: 1px solid var(--brass); border-radius: 10px; padding: 6px 12px; font-size: 14px; text-align: center; }
+#quest b { color: var(--brass); margin-right: 6px; }
+
+/* 대화창: 게임기 느낌의 두꺼운 테두리 */
+#dialog { position: absolute; left: 10px; right: 10px; bottom: 10px; min-height: 92px; background: #fbf7ee; color: #2b2418;
+  border: 4px solid #2b2418; border-radius: 10px; box-shadow: inset 0 0 0 3px #fbf7ee, inset 0 0 0 5px #c9b48a; padding: 12px 16px 14px; cursor: pointer; }
+#dName { position: absolute; top: -16px; left: 12px; background: #2b2418; color: #fbf7ee; border-radius: 6px; padding: 2px 10px; font-size: 13px; }
+#dName:empty { display: none; }
+#dText { margin: 0; font-size: 17px; line-height: 1.55; white-space: pre-line; min-height: 52px; }
+#dMore { position: absolute; right: 12px; bottom: 6px; font-size: 12px; animation: bob .6s ease-in-out infinite alternate; }
+@keyframes bob { to { transform: translateY(3px); } }
+
+#menu { position: absolute; right: 10px; bottom: 10px; background: #fbf7ee; color: #2b2418; border: 4px solid #2b2418; border-radius: 10px;
+  padding: 10px; display: flex; flex-direction: column; gap: 6px; min-width: 170px; }
+#menu p { margin: 0 4px 4px; font-size: 14px; color: #6b5a3a; }
+#menu button { border: 0; background: none; text-align: left; padding: 8px 10px 8px 26px; border-radius: 6px; font-size: 17px; position: relative; }
+#menu button.sel, #menu button:hover { background: #efe3c4; }
+#menu button.sel::before { content: "▶"; position: absolute; left: 8px; font-size: 12px; top: 12px; }
+
+#toast { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--brass);
+  border-radius: 12px; padding: 10px 18px; font-size: 16px; text-align: center; pointer-events: none; }
+
+/* 조작 패드 */
+#pad { flex: none; height: 196px; padding: 14px 22px calc(14px + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between;
+  background: #1a222c; border-top: 1px solid var(--line); touch-action: none; }
+#dpad { display: grid; grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); }
+#dpad button { border: 0; background: #34404d; color: var(--paper); font-size: 20px; touch-action: none; }
+#dpad button.down { background: #4d5d6e; }
+#dpad [data-d="up"] { grid-area: 1 / 2; border-radius: 10px 10px 0 0; }
+#dpad [data-d="left"] { grid-area: 2 / 1; border-radius: 10px 0 0 10px; }
+#dpad [data-d="right"] { grid-area: 2 / 3; border-radius: 0 10px 10px 0; }
+#dpad [data-d="down"] { grid-area: 3 / 2; border-radius: 0 0 10px 10px; }
+#dpad i { grid-area: 2 / 2; background: #34404d; }
+#abtn { width: 78px; height: 78px; border-radius: 50%; border: 0; background: var(--brass); color: var(--brass-ink); font-size: 24px; font-weight: 700;
+  box-shadow: 0 5px 0 #a87a2a; touch-action: none; }
+#abtn.down { transform: translateY(4px); box-shadow: 0 1px 0 #a87a2a; }
+#keysHint { color: var(--muted); font-size: 12px; text-align: center; flex: 1; padding: 0 10px; }
+
+/* 첫 화면, 초대장, 투어 창 */
+.veil { position: fixed; inset: 0; background: rgba(8, 13, 19, .7); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.card { width: min(420px, 100%); background: var(--ink); border: 1px solid var(--line); border-radius: 18px; padding: 24px 20px; text-align: center;
+  display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.card h1 { margin: 0; font-family: var(--font-display); font-size: clamp(28px, 8vw, 40px); line-height: 1.2; }
+.card h2 { margin: 0; font-family: var(--font-display); font-size: 24px; }
+.card p { margin: 0; }
+.card .sub { color: var(--muted); }
+.big { border: 0; border-radius: 12px; padding: 14px; font-size: 17px; text-decoration: none; display: block; }
+.card ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.card a.link { color: var(--muted); font-size: 14px; }
+#title canvas { image-rendering: pixelated; width: 96px; height: 96px; margin: 0 auto; }
+#overlay { position: fixed; inset: 0; background: var(--ink); }
+#overlay iframe { width: 100%; height: 100%; border: 0; display: block; }
+#overlay .back { position: absolute; left: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 2; }
+@media (prefers-reduced-motion: reduce) { #dMore { animation: none; } #cv { transition: none; } }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="screen">
+    <canvas id="cv" aria-label="교회 지도. 방향 버튼으로 걸어 다닐 수 있습니다."></canvas>
+    <div id="hud">
+      <div id="place"><small id="church"></small><b id="area"></b></div>
+      <div id="hudBtns">
+        <button class="pill" id="photoBtn" type="button">사진으로 보기</button>
+        <button class="pill icon" id="soundBtn" type="button"></button>
+      </div>
+    </div>
+    <div id="quest" aria-live="polite"></div>
+    <div id="toast" hidden></div>
+    <div id="dialog" hidden role="dialog" aria-live="polite"><span id="dName"></span><p id="dText"></p><span id="dMore">▼</span></div>
+    <div id="menu" hidden role="menu"></div>
+  </div>
+  <div id="pad">
+    <div id="dpad" aria-label="방향">
+      <button type="button" data-d="up" aria-label="위">▲</button>
+      <button type="button" data-d="left" aria-label="왼쪽">◀</button>
+      <i></i>
+      <button type="button" data-d="right" aria-label="오른쪽">▶</button>
+      <button type="button" data-d="down" aria-label="아래">▼</button>
+    </div>
+    <div id="keysHint">사람이나 악기 앞에서<br>A 를 누르세요</div>
+    <button id="abtn" type="button" aria-label="말 걸기, 살펴보기">A</button>
+  </div>
+</div>
+
+<div class="veil" id="title">
+  <div class="card">
+    <canvas id="titleArt" width="16" height="16"></canvas>
+    <h1 id="tTitle"></h1>
+    <p class="sub" id="tSub"></p>
+    <button class="big primary" id="startBtn" type="button">시작하기</button>
+    <button class="big pill" id="newBtn" type="button" hidden>처음부터 하기</button>
+    <a class="link" href="index.html">360도 사진 투어로 보기</a>
+  </div>
+</div>
+
+<div class="veil" id="inviteV" hidden>
+  <div class="card" role="dialog" aria-labelledby="ivT">
+    <h2 id="ivT"></h2>
+    <ul id="ivLines"></ul>
+    <p class="sub" id="ivNote"></p>
+    <a class="big primary" id="ivMap" target="_blank" rel="noopener" hidden>지도 보기</a>
+    <button class="big pill" id="ivClose" type="button">닫기</button>
+  </div>
+</div>
+
+<div id="overlay" hidden>
+  <iframe id="frame" title="교회 사진과 연주 화면"></iframe>
+  <button class="pill primary back" id="backBtn" type="button">← 게임으로 돌아가기</button>
+</div>
+
+<script src="config.js"></script>
+<script>
+(function () {
+"use strict";
+var T = window.TOUR, G = T && T.game;
+var $ = function (id) { return document.getElementById(id); };
+if (!G) { document.body.textContent = "config.js 에 game 설정이 없습니다. README 의 '도트 게임 모드'를 참고해 주세요."; return; }
+var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var TS = 16;
+var DX = { up: 0, down: 0, left: -1, right: 1 }, DY = { up: -1, down: 1, left: 0, right: 0 };
+
+/* ---------- 그림: 바닥과 벽 (한 칸 16x16, 코드로 그림) ---------- */
+function paint(fn) {
+  var c = document.createElement("canvas"); c.width = c.height = TS;
+  var g = c.getContext("2d");
+  fn(function (x, y, w, h, col) { g.fillStyle = col; g.fillRect(x, y, w, h); }, g);
+  return c;
+}
+function floor(R) { R(0, 0, 16, 16, "#dcd6c8"); R(0, 15, 16, 1, "#cdc6b5"); R(15, 0, 1, 16, "#cdc6b5"); }
+function wall(R) { R(0, 0, 16, 16, "#efe6d4"); R(0, 0, 16, 3, "#a2937b"); R(0, 13, 16, 3, "#d6c9b0"); }
+var TILE = {
+  ".": floor,
+  ",": function (R) { R(0, 0, 16, 16, "#cfa871"); [0, 4, 8, 12].forEach(function (y, i) { R(0, y + 3, 16, 1, "#b8925c"); R((i * 6 + 3) % 16, y, 1, 3, "#b8925c"); }); },
+  "_": function (R) { R(0, 0, 16, 16, "#e6bcac"); R(0, 15, 16, 1, "#d3a594"); R(15, 0, 1, 16, "#d3a594"); },
+  "#": wall,
+  "w": function (R) { wall(R); R(3, 4, 10, 8, "#cfe6f2"); R(3, 4, 3, 8, "#f7f7f7"); R(10, 4, 3, 8, "#f7f7f7"); R(3, 11, 10, 1, "#b9a98d"); },
+  "x": function (R) { wall(R); R(5, 4, 6, 10, "#ffe6a8"); R(7, 4, 2, 10, "#8a5a33"); R(5, 7, 6, 2, "#8a5a33"); },
+  "b": function (R) {
+    R(0, 0, 16, 16, "#6b4a2b"); R(1, 1, 14, 6, "#3a2717"); R(1, 9, 14, 6, "#3a2717");
+    var cs = ["#c0392b", "#2f6f9f", "#e0ad4e", "#4f8a3c", "#8e5ea2", "#ecf0f1"];
+    for (var i = 0; i < 7; i++) { R(1 + i * 2, 2 + (i % 2), 2, 5 - (i % 2), cs[i % 6]); R(1 + i * 2, 10 + ((i + 1) % 2), 2, 5 - ((i + 1) % 2), cs[(i + 3) % 6]); }
+  },
+  "h": function (R) { floor(R); R(0, 4, 16, 9, "#8a5a33"); R(0, 4, 16, 3, "#6b4426"); R(0, 12, 16, 1, "#5a381f"); },
+  "t": function (R) { floor(R); R(1, 2, 14, 12, "#b07a45"); R(1, 12, 14, 2, "#8a5a33"); R(2, 3, 12, 1, "#c99160"); },
+  "c": function (R) { floor(R); R(4, 3, 8, 3, "#a9b43d"); R(4, 6, 8, 6, "#c8d455"); R(4, 12, 1, 3, "#555"); R(11, 12, 1, 3, "#555"); },
+  "k": function (R) { floor(R); R(0, 3, 16, 13, "#2f333a"); R(0, 3, 16, 3, "#5b616b"); R(0, 15, 16, 1, "#1d2025"); },
+  "p": function (R) { floor(R); R(5, 11, 6, 5, "#a0522d"); R(3, 3, 10, 9, "#4f8a3c"); R(5, 1, 6, 4, "#5fa04a"); R(2, 6, 3, 4, "#3f7330"); R(11, 5, 3, 4, "#3f7330"); },
+  "g": function (R) { floor(R); R(2, 0, 12, 16, "rgba(150,210,230,.55)"); R(0, 0, 2, 16, "#8fa9b6"); R(14, 0, 2, 16, "#8fa9b6"); R(7, 6, 2, 5, "#b0b0b0"); },
+  "D": function (R) { floor(R); R(0, 0, 2, 16, "#7a4b2a"); R(14, 0, 2, 16, "#7a4b2a"); R(3, 4, 10, 8, "#a77852"); R(4, 5, 8, 6, "#b98a62"); },
+  "E": function (R) { R(0, 0, 16, 16, "#6e6e69"); R(1, 2, 14, 14, "#c9c6bd"); R(7, 2, 2, 14, "#8d8a82"); R(1, 0, 14, 2, "#4a4a46"); R(12, 0, 2, 2, "#7fe0a0"); },
+  "L": function (R) { R(0, 0, 16, 16, "#e6bcac"); R(3, 2, 10, 13, "#8a5a33"); R(3, 2, 10, 2, "#a8703f"); R(7, 6, 2, 7, "#e0c080"); R(5, 8, 6, 2, "#e0c080"); },
+  "s": function (R) { R(0, 0, 16, 16, "#bdb6a6"); for (var y = 3; y < 16; y += 4) R(0, y, 16, 1, "#8c8576"); },
+  " ": function (R) { R(0, 0, 16, 16, "#20242b"); }
+};
+var SOLID = "#wxbhtckpELs ";
+var tileCache = {};
+function tileImg(ch) { if (!TILE[ch]) ch = " "; return tileCache[ch] || (tileCache[ch] = paint(TILE[ch])); }
+
+/* ---------- 그림: 악기와 물건 ---------- */
+var THING = {
+  piano: function (R) { R(1, 3, 14, 9, "#1d1d1f"); R(2, 8, 12, 4, "#f4f1ea"); for (var x = 3; x < 14; x += 2) R(x, 8, 1, 2, "#1d1d1f"); R(3, 12, 1, 3, "#444"); R(12, 12, 1, 3, "#444"); },
+  keys: function (R) { R(1, 4, 14, 8, "#b33a3a"); R(2, 8, 12, 3, "#f4f1ea"); for (var x = 3; x < 14; x += 2) R(x, 8, 1, 2, "#1d1d1f"); R(3, 12, 1, 3, "#444"); R(12, 12, 1, 3, "#444"); },
+  drums: function (R) { R(4, 6, 8, 8, "#c9c6bd"); R(5, 7, 6, 6, "#e8e4da"); R(1, 3, 5, 3, "#d4a83a"); R(10, 2, 5, 3, "#d4a83a"); R(1, 10, 4, 4, "#b0aca0"); R(11, 10, 4, 4, "#b0aca0"); },
+  bass: function (R) { R(7, 0, 2, 9, "#d9c08f"); R(6, 0, 4, 2, "#2f5f9f"); R(4, 8, 8, 7, "#2f5f9f"); R(5, 9, 6, 5, "#4f85c5"); R(7, 11, 2, 1, "#ddd"); },
+  eguitar: function (R) { R(7, 0, 2, 9, "#d9c08f"); R(6, 0, 4, 2, "#222"); R(4, 8, 8, 7, "#c0392b"); R(5, 9, 6, 5, "#e74c3c"); R(6, 11, 4, 1, "#eee"); },
+  aguitar: function (R) { R(7, 0, 2, 8, "#6b4426"); R(6, 0, 4, 2, "#3a2717"); R(3, 7, 10, 8, "#d2a160"); R(4, 8, 8, 6, "#e3b878"); R(7, 10, 2, 2, "#3a2717"); },
+  cafe: function (R) { R(0, 3, 16, 13, "#2f333a"); R(0, 3, 16, 3, "#5b616b"); R(3, 0, 10, 9, "#d7d7d2"); R(4, 1, 8, 2, "#9aa3ad"); R(5, 5, 2, 3, "#333"); R(9, 5, 2, 3, "#333"); R(6, 9, 4, 3, "#f4f1ea"); },
+  sign: function (R) { R(3, 3, 10, 9, "#6b4a2b"); R(4, 4, 8, 7, "#f4ead2"); R(5, 6, 6, 1, "#8a7a63"); R(5, 8, 4, 1, "#8a7a63"); }
+};
+var INST_THING = { piano: "piano", keys2: "keys", drums: "drums", bass: "bass", eguitar: "eguitar", aguitar: "aguitar" };
+var thingCache = {};
+function thingImg(name) { return thingCache[name] || (thingCache[name] = THING[name] ? paint(THING[name]) : null); }
+
+/* ---------- 그림: 사람 (16x16 도트. o 테두리, h 머리, s 피부, e 눈, c 옷, d 옷 그늘, p 바지, f 신발) ---------- */
+var BODY = [
+  "...occcccccco...",
+  "..ocdccccccdco..",
+  "..osccccccccso..",
+  "...oppppppppo..."];
+var LEGS0 = ["...opppoopppo...", "...offo..offo...", "....oo....oo...."];
+var LEGS1 = ["...opppoopppo...", "...offo..oppo...", "....oo...offo..."];
+var HEAD_DOWN = ["................", ".....oooooo.....", "....ohhhhhho....", "...ohhhhhhhho...", "...ohhhhhhhho...",
+  "...ohssssssho...", "...osesssseso...", "....osssssso....", ".....oossoo....."];
+var HEAD_UP = ["................", ".....oooooo.....", "....ohhhhhho....", "...ohhhhhhhho...", "...ohhhhhhhho...",
+  "...ohhhhhhhho...", "...ohhhhhhhho...", "....ohhhhhho....", ".....oossoo....."];
+var SIDE = ["................", ".....ooooo......", "....ohhhhho.....", "...ohhhhhhho....", "...ohhhhhhho....",
+  "...ohhhhsssso...", "...ohhhssseso...", "....ohssssso....", ".....oossoo.....",
+  "....occcccco....", "....occcdcco....", "....occcscco....", "....oppppppo...."];
+var SIDE_LEGS0 = ["....opppppo.....", ".....offfo......", ".....oooo......."];
+var SIDE_LEGS1 = ["...opppoppo.....", "...offo.offo....", "...oo....oo....."];
+var POSE = {
+  down: [HEAD_DOWN.concat(BODY, LEGS0), HEAD_DOWN.concat(BODY, LEGS1)],
+  up: [HEAD_UP.concat(BODY, LEGS0), HEAD_UP.concat(BODY, LEGS1)],
+  right: [SIDE.concat(SIDE_LEGS0), SIDE.concat(SIDE_LEGS1)]
+};
+function shade(hex, k) {
+  var n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return "rgb(" + Math.round(r * k) + "," + Math.round(g * k) + "," + Math.round(b * k) + ")";
+}
+var spriteCache = {};
+function personImg(look, dir, frame) {
+  look = look || {};
+  var key = (look.hair || "") + (look.shirt || "") + dir + frame;
+  if (spriteCache[key]) return spriteCache[key];
+  var shirt = look.shirt || "#3a6fb5";
+  var pal = { o: "#2a2420", h: look.hair || "#2b2b2b", s: "#f2c9a0", e: "#2a2420", c: shirt, d: shade(shirt, 0.75), p: look.pants || "#3b4252", f: "#3a3a3a" };
+  var rows = POSE[dir === "left" ? "right" : dir][frame], flip = dir === "left";
+  return (spriteCache[key] = paint(function (R) {
+    rows.forEach(function (row, y) {
+      for (var x = 0; x < 16; x++) { var ch = row[x]; if (pal[ch]) R(flip ? 15 - x : x, y, 1, 1, pal[ch]); }
+    });
+  }));
+}
+
+/* ---------- 지도 ---------- */
+var maps = {};
+Object.keys(G.maps).forEach(function (id) {
+  var m = G.maps[id], w = 0;
+  m.rows.forEach(function (r) { w = Math.max(w, r.length); });
+  var objs = (m.objects || []).map(function (o) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); return c; });
+  maps[id] = { id: id, name: m.name || id, rows: m.rows, w: w, h: m.rows.length, areas: m.areas || [], objs: objs };
+});
+function tileAt(m, x, y) { var r = m.rows[y]; return r && r[x] !== undefined ? r[x] : " "; }
+function objAt(m, x, y) { for (var i = 0; i < m.objs.length; i++) if (m.objs[i].x === x && m.objs[i].y === y) return m.objs[i]; return null; }
+function walkable(m, x, y) { return SOLID.indexOf(tileAt(m, x, y)) < 0 && !objAt(m, x, y); }
+function areaAt(m, x, y) {
+  for (var i = 0; i < m.areas.length; i++) { var a = m.areas[i]; if (x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h) return a; }
+  return null;
+}
+
+/* ---------- 저장 (없어도 동작) ---------- */
+function load() { try { return JSON.parse(localStorage.getItem("tour.game") || "null"); } catch (e) { return null; } }
+function save() { try { localStorage.setItem("tour.game", JSON.stringify({ q: quest, map: P.map, x: P.x, y: P.y, dir: P.dir })); } catch (e) {} }
+
+/* ---------- 상태 ---------- */
+var S0 = G.start || { map: Object.keys(maps)[0], x: 1, y: 1, dir: "down" };
+var P = { map: S0.map, x: S0.x, y: S0.y, dir: S0.dir || "down", moving: false, fx: 0, fy: 0, t: 0, step: 0 };
+var quest = 0, QUESTS = G.quests || [];
+var PLAYER = G.player || { hair: "#2b2b2b", shirt: "#e0ad4e" };
+var cv = $("cv"), ctx = cv.getContext("2d"), VW = 11, VH = 13;
+var STEP_MS = 210;
+
+/* ---------- 화면 크기 ---------- */
+function resize() {
+  var box = $("screen"), W = box.clientWidth, H = box.clientHeight;
+  var tile = W < 520 ? W / 11 : Math.min(48, W / 13);   // 폰 세로에서는 가로 11칸
+  VW = Math.max(9, Math.floor(W / tile)); VH = Math.max(7, Math.ceil(H / tile));
+  cv.width = VW * TS; cv.height = VH * TS;
+  cv.style.width = Math.round(VW * tile) + "px"; cv.style.height = Math.round(VH * tile) + "px";
+  ctx.imageSmoothingEnabled = false;
+}
+window.addEventListener("resize", resize);
+
+/* ---------- 그리기 ---------- */
+function draw() {
+  var m = maps[P.map], k = P.moving ? P.t : 1;
+  var px = P.moving ? P.fx + (P.x - P.fx) * k : P.x, py = P.moving ? P.fy + (P.y - P.fy) * k : P.y;
+  // 사람을 가운데에 두되, 지도가 화면보다 크면 지도 밖은 덜 보이게
+  var cx = px + 0.5 - VW / 2, cy = py + 0.5 - VH / 2;
+  if (m.w <= VW) cx = (m.w - VW) / 2; else cx = Math.max(-0.5, Math.min(m.w - VW + 0.5, cx));
+  if (m.h <= VH) cy = (m.h - VH) / 2; else cy = Math.max(-0.5, Math.min(m.h - VH + 0.5, cy));
+  ctx.fillStyle = "#20242b"; ctx.fillRect(0, 0, cv.width, cv.height);
+  var x0 = Math.floor(cx), y0 = Math.floor(cy), ox = Math.round((x0 - cx) * TS), oy = Math.round((y0 - cy) * TS);
+  for (var y = 0; y <= VH + 1; y++) for (var x = 0; x <= VW + 1; x++) {
+    var tx = x0 + x, ty = y0 + y;
+    if (tx < 0 || ty < 0 || tx >= m.w || ty >= m.h) continue;
+    ctx.drawImage(tileImg(tileAt(m, tx, ty)), ox + x * TS, oy + y * TS);
+  }
+  function at(wx, wy) { return [Math.round((wx - cx) * TS), Math.round((wy - cy) * TS)]; }
+  // 물건과 사람은 아래쪽에 있는 것을 나중에 그린다
+  var list = m.objs.map(function (o) { return { y: o.y, o: o }; });
+  list.push({ y: py, me: true });
+  list.sort(function (a, b) { return a.y - b.y; });
+  list.forEach(function (it) {
+    if (it.me) {
+      // 걷는 동안 반 칸은 다리를 벌린 그림. 위아래로 걸을 때는 한 걸음마다 좌우를 뒤집어 양발을 번갈아 낸다
+      var p = at(px, py - 0.25), fr = P.moving && k < 0.5 ? 1 : 0;
+      ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(p[0] + 4, p[1] + 17, 8, 2);
+      var img = personImg(PLAYER, P.dir, fr);
+      if (fr && P.step && (P.dir === "up" || P.dir === "down")) {
+        ctx.save(); ctx.translate(p[0] + 16, p[1]); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0); ctx.restore();
+      } else ctx.drawImage(img, p[0], p[1]);
+      return;
+    }
+    var o = it.o, q = at(o.x, o.y);
+    if (o.type === "person") {
+      q = at(o.x, o.y - 0.25);
+      ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(q[0] + 4, q[1] + 17, 8, 2);
+      ctx.drawImage(personImg(o.look, o.dir || "down", 0), q[0], q[1]);
+      if (o.invite && quest === QUESTS.length - 1) { ctx.fillStyle = "#e0ad4e"; ctx.fillRect(q[0] + 7, q[1] - 6, 2, 4); ctx.fillRect(q[0] + 7, q[1] - 1, 2, 2); }
+    } else {
+      var img2 = thingImg(o.type === "inst" ? (o.sprite || INST_THING[o.id] || "keys") : (o.sprite || o.type));
+      if (img2) ctx.drawImage(img2, q[0], q[1]);
+    }
+  });
+}
+
+/* ---------- 움직이기 ---------- */
+var held = [], last = 0, busyUntil = 0;
+function busy() { return !$("dialog").hidden || !$("menu").hidden || !$("overlay").hidden || !$("inviteV").hidden || !$("title").hidden || performance.now() < busyUntil; }
+function tryMove(d) {
+  P.dir = d;
+  var m = maps[P.map], nx = P.x + DX[d], ny = P.y + DY[d];
+  if (walkable(m, nx, ny)) { P.fx = P.x; P.fy = P.y; P.x = nx; P.y = ny; P.moving = true; P.t = 0; P.step ^= 1; return; }
+  if (tileAt(m, nx, ny) === "E") { held = []; elevatorMenu(); return; }
+  bumpSound();
+}
+function arrived() { updateHud(); save(); }
+function tick() {
+  var now = performance.now(), dt = Math.min(250, now - (last || now)); last = now;
+  if (P.moving) {
+    P.t += dt / STEP_MS;
+    if (P.t >= 1) { P.moving = false; P.t = 0; arrived(); }
+  }
+  if (!P.moving && held.length && !busy()) tryMove(held[held.length - 1]);
+  draw();
+}
+function frame() { tick(); requestAnimationFrame(frame); }
+// 화면 갱신이 멈추거나 느려지는 브라우저(일부 인앱 브라우저 등)에서도 걸음이 멈추지 않도록 시간으로 한 번 더 돌린다
+setInterval(function () { if (performance.now() - last > 120) tick(); }, 60);
+
+/* ---------- 살펴보기 (A) ---------- */
+function front() { return { x: P.x + DX[P.dir], y: P.y + DY[P.dir] }; }
+function interact() {
+  if (!$("dialog").hidden) return advance();
+  if (!$("menu").hidden) return menuPick();
+  if (busy() || P.moving) return;
+  var f = front(), m = maps[P.map], o = objAt(m, f.x, f.y);
+  if (tileAt(m, f.x, f.y) === "E") return elevatorMenu();
+  if (!o) return;
+  blip();
+  if (o.type === "person") {
+    o.dir = { up: "down", down: "up", left: "right", right: "left" }[P.dir];
+    var all = quest >= QUESTS.length, lines = (o.sayAt && (all ? o.sayAt.done : o.sayAt[String(quest)])) || o.say || ["..."];
+    talk(o.name || "", lines, function () {
+      emit("talk:" + o.id);
+      if (o.invite && quest >= QUESTS.length) showInvite();
+    });
+  } else if (o.type === "sign") talk("", o.say || [], null);
+  else if (o.type === "inst") openTour({ scene: o.scene || sceneHere(), open: "inst:" + o.id });
+  else if (o.type === "cafe") openTour({ scene: o.scene || sceneHere(), open: "cafe" });
+}
+
+/* ---------- 대화창 ---------- */
+var lines = [], li = 0, shown = 0, typing = null, after = null;
+function talk(name, ls, done) {
+  lines = ls.slice(); li = 0; after = done; held = [];
+  $("dName").textContent = name; $("dialog").hidden = false; type();
+}
+function type() {
+  var full = lines[li] || ""; shown = 0; clearInterval(typing);
+  $("dMore").hidden = true;
+  if (reduce) { $("dText").textContent = full; $("dMore").hidden = false; return; }
+  typing = setInterval(function () {
+    shown++; $("dText").textContent = full.slice(0, shown);
+    if (shown >= full.length) { clearInterval(typing); typing = null; $("dMore").hidden = false; }
+  }, 28);
+}
+function advance() {
+  if (typing) { clearInterval(typing); typing = null; $("dText").textContent = lines[li]; $("dMore").hidden = false; return; }
+  blip(); li++;
+  if (li < lines.length) return type();
+  $("dialog").hidden = true; busyUntil = performance.now() + 150;
+  var f = after; after = null; if (f) f();
+}
+$("dialog").addEventListener("click", advance);
+
+/* ---------- 엘리베이터 ---------- */
+var menuSel = 0, menuItems = [];
+function elevatorMenu() {
+  var m = $("menu"); m.textContent = ""; held = [];
+  var p = document.createElement("p"); p.textContent = "몇 층으로 갈까요?"; m.appendChild(p);
+  menuItems = (G.elevator || []).concat([{ label: "그만두기" }]);
+  menuItems.forEach(function (it, i) {
+    var b = document.createElement("button"); b.type = "button"; b.textContent = it.label; b.setAttribute("role", "menuitem");
+    b.addEventListener("click", function () { menuSel = i; menuPick(); });
+    m.appendChild(b);
+  });
+  menuSel = 0; markMenu(); m.hidden = false;
+}
+function markMenu() { Array.prototype.forEach.call($("menu").querySelectorAll("button"), function (b, i) { b.classList.toggle("sel", i === menuSel); }); }
+function menuMove(d) { if (d === "up" || d === "down") { menuSel = (menuSel + (d === "up" ? -1 : 1) + menuItems.length) % menuItems.length; markMenu(); blip(); } }
+function menuPick() {
+  var it = menuItems[menuSel]; $("menu").hidden = true; busyUntil = performance.now() + 150;
+  if (!it || !it.map) return;
+  ding();
+  $("cv").classList.add("fade");
+  setTimeout(function () {
+    P.map = it.map; P.x = it.x; P.y = it.y; P.dir = it.dir || "down"; P.moving = false;
+    $("cv").classList.remove("fade");
+    toast("띵! " + it.label + "입니다");
+    updateHud(); save(); emit("map:" + it.map);
+  }, reduce ? 0 : 450);
+}
+
+/* ---------- 할 일 ---------- */
+function emit(ev) {
+  if (quest < QUESTS.length && QUESTS[quest].until === ev) {
+    quest++; save(); updateQuest();
+    if (quest < QUESTS.length) toast("완료! 다음 할 일이 생겼어요"); else toast(G.doneText || "다 했어요!");
+    fanfare();
+  }
+}
+function updateQuest() {
+  var q = $("quest"); q.textContent = "";
+  if (!QUESTS.length) { q.hidden = true; return; }
+  var b = document.createElement("b"); b.textContent = quest < QUESTS.length ? (quest + 1) + "/" + QUESTS.length : "완료";
+  q.appendChild(b); q.appendChild(document.createTextNode(quest < QUESTS.length ? QUESTS[quest].text : (G.doneText || "")));
+}
+var toastT = null;
+function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, 1800); }
+
+/* ---------- 위쪽 표시 ---------- */
+function sceneHere() { var a = areaAt(maps[P.map], P.x, P.y); return a && a.scene; }
+function updateHud() {
+  var m = maps[P.map], a = areaAt(m, P.x, P.y);
+  $("area").textContent = a ? a.name : m.name;
+  $("photoBtn").hidden = !(a && a.scene && T.scenes && T.scenes[a.scene]);
+}
+$("church").textContent = (T.church && T.church.name) || "";
+$("photoBtn").addEventListener("click", function () { var s = sceneHere(); if (s) openTour({ scene: s }); });
+
+/* ---------- 360도 사진, 악기, 카페는 투어 화면(index.html)을 그대로 띄운다 ---------- */
+function openTour(o) {
+  held = []; chipPause(true);
+  $("frame").src = "index.html#embed&scene=" + encodeURIComponent(o.scene || "") + (o.open ? "&open=" + encodeURIComponent(o.open) : "");
+  $("overlay").hidden = false; $("backBtn").hidden = !!o.open;
+}
+function closeTour() { $("overlay").hidden = true; $("frame").src = "about:blank"; chipPause(false); busyUntil = performance.now() + 200; }
+$("backBtn").addEventListener("click", closeTour);
+window.addEventListener("message", function (e) {
+  if (e.source !== $("frame").contentWindow || !e.data || !e.data.tour) return;
+  var t = e.data.tour;
+  if (t === "close") closeTour(); else emit(t);
+});
+
+/* ---------- 초대장 ---------- */
+function showInvite() {
+  var inv = T.invite; if (!inv) return;
+  $("ivT").textContent = inv.title || ""; $("ivNote").textContent = inv.note || "";
+  var ul = $("ivLines"); ul.textContent = "";
+  (inv.lines || []).forEach(function (t) { var li2 = document.createElement("li"); li2.textContent = t; ul.appendChild(li2); });
+  if (inv.map) { $("ivMap").href = inv.map; $("ivMap").hidden = false; }
+  $("inviteV").hidden = false; $("ivClose").focus();
+}
+$("ivClose").addEventListener("click", function () { $("inviteV").hidden = true; busyUntil = performance.now() + 150; });
+
+/* ---------- 조작: 방향 패드, A, 키보드 ---------- */
+function press(d) {
+  if (!$("menu").hidden) return menuMove(d);
+  if (held.indexOf(d) < 0) held.push(d);
+  if (!P.moving && !busy()) tryMove(d);   // 짧게 톡 눌러도 한 칸은 움직이게, 바로 출발
+}
+function release(d) { held = held.filter(function (x) { return x !== d; }); }
+Array.prototype.forEach.call(document.querySelectorAll("#dpad button"), function (b) {
+  var d = b.dataset.d;
+  b.addEventListener("pointerdown", function (e) { e.preventDefault(); b.classList.add("down"); audio(); press(d); });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) { b.addEventListener(ev, function () { b.classList.remove("down"); release(d); }); });
+});
+var A = $("abtn");
+A.addEventListener("pointerdown", function (e) { e.preventDefault(); A.classList.add("down"); audio(); interact(); });
+["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) { A.addEventListener(ev, function () { A.classList.remove("down"); }); });
+var KEY = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right" };
+window.addEventListener("keydown", function (e) {
+  if (!$("title").hidden || !$("overlay").hidden) return;
+  if (!$("inviteV").hidden) { if (e.key === "Escape") $("ivClose").click(); return; }
+  var d = KEY[e.key];
+  if (d) { e.preventDefault(); if (!e.repeat) press(d); return; }
+  if (e.key === " " || e.key === "Enter" || e.key === "z" || e.key === "Z") { e.preventDefault(); if (!e.repeat) interact(); }
+  if (e.key === "Escape" && !$("menu").hidden) { menuSel = menuItems.length - 1; menuPick(); }
+});
+window.addEventListener("keyup", function (e) { var d = KEY[e.key]; if (d) release(d); });
+window.addEventListener("blur", function () { held = []; });
+
+/* ---------- 소리: 게임기 느낌의 배경 음악 (config.js 의 bgm 곡을 사각파로) ---------- */
+var actx = null, out = null;
+function audio() {
+  try {
+    if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); out = actx.createGain(); out.gain.value = 0.5; out.connect(actx.destination); }
+    if (actx.state === "suspended") actx.resume();
+  } catch (e) { actx = null; }
+  return actx;
+}
+var pulse = null;
+function pulseWave() {
+  if (pulse) return pulse;
+  var n = 32, re = new Float32Array(n), im = new Float32Array(n), d = 0.25;   // 25% 폭 사각파
+  for (var i = 1; i < n; i++) { re[i] = Math.sin(2 * Math.PI * i * d) / (i * Math.PI); im[i] = (1 - Math.cos(2 * Math.PI * i * d)) / (i * Math.PI); }
+  return (pulse = actx.createPeriodicWave(re, im));
+}
+function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+function beep(m, when, len, kind, vol, dest) {
+  var o = actx.createOscillator(), g = actx.createGain();
+  if (kind === "pulse") o.setPeriodicWave(pulseWave()); else o.type = kind;
+  o.frequency.value = hz(m);
+  g.gain.setValueAtTime(0.0001, when); g.gain.linearRampToValueAtTime(vol, when + 0.008);
+  g.gain.setValueAtTime(vol * 0.8, when + len * 0.7); g.gain.linearRampToValueAtTime(0.0001, when + len);
+  o.connect(g); g.connect(dest || out); o.start(when); o.stop(when + len + 0.02);
+}
+function blip() { var a = audio(); if (a) beep(84, a.currentTime, 0.05, "pulse", 0.05); }
+var lastBump = -1;
+function bumpSound() {   // 벽에 부딪히는 소리. 계속 밀고 있으면 0.3초에 한 번만
+  var a = audio(); if (!a || a.currentTime - lastBump < 0.3) return;
+  lastBump = a.currentTime; beep(40, a.currentTime, 0.08, "square", 0.05);
+}
+function ding() { var a = audio(); if (!a) return; beep(88, a.currentTime, 0.5, "sine", 0.12); beep(84, a.currentTime + 0.25, 0.8, "sine", 0.12); }
+function fanfare() { var a = audio(); if (!a) return; [72, 76, 79, 84].forEach(function (m, i) { beep(m, a.currentTime + i * 0.09, i === 3 ? 0.35 : 0.08, "pulse", 0.08); }); }
+
+function parseTimed(str) {
+  var SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  return String(str || "").trim().split(/\s+/).map(function (tok) {
+    var m = /^(?:([A-G])(#|b)?(-?\d)|R):([\d.]+)$/.exec(tok);
+    if (!m) return null;
+    return [m[1] ? 12 * (+m[3] + 1) + SEMI[m[1]] + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0) : null, +m[4]];
+  }).filter(Boolean);
+}
+var CHIP = ((T.bgm && T.bgm.songs) || []).map(function (x) {
+  var parts = (x.parts || []).map(parseTimed).filter(function (p) { return p.length; }), ev = [], len = 0;
+  parts.forEach(function (p, pi) {
+    var t = 0;
+    p.forEach(function (n) { if (n[0] != null) ev.push({ t: t, m: n[0], d: n[1], v: pi, n: parts.length }); t += n[1]; });
+    len = Math.max(len, t);
+  });
+  ev.sort(function (a, b) { return a.t - b.t; });
+  return { spb: 60 / ((x.tempo || 90) * 1.12), ev: ev, len: len };
+}).filter(function (x) { return x.ev.length; });
+var chip = { on: false, gain: null, song: 0, i: 0, start: 0, timer: null, paused: false };
+function chipPump() {
+  if (!chip.on || !actx) return;
+  var until = actx.currentTime + 1;
+  for (var guard = 0; guard < 4; guard++) {
+    var sg = CHIP[chip.song];
+    while (chip.i < sg.ev.length) {
+      var e = sg.ev[chip.i], when = chip.start + e.t * sg.spb;
+      if (when > until) return;
+      if (when > actx.currentTime - 0.05) {
+        var len = e.d * sg.spb * 0.88, w = Math.max(when, actx.currentTime);
+        if (e.v === 0) beep(e.m, w, len, "pulse", 0.07, chip.gain);                    // 멜로디
+        else if (e.v === e.n - 1) beep(e.m, w, len, "triangle", 0.13, chip.gain);      // 베이스
+        else if (e.v === 1) beep(e.m, w, len * 0.6, "square", 0.018, chip.gain);       // 화음 하나만 작게
+      }
+      chip.i++;
+    }
+    chip.start += (sg.len + 2) * sg.spb; chip.song = (chip.song + 1) % CHIP.length; chip.i = 0;
+  }
+}
+function chipStart() {
+  var a = audio(); if (!a || chip.on || !CHIP.length) return;
+  chip.on = true; chip.gain = a.createGain(); chip.gain.gain.value = 1; chip.gain.connect(out);
+  chip.start = a.currentTime + 0.3; chip.i = 0;
+  chipPump(); chip.timer = setInterval(chipPump, 250); soundBtn();
+}
+function chipStop() {
+  if (!chip.on) return;
+  chip.on = false; clearInterval(chip.timer);
+  var g = chip.gain; g.gain.setTargetAtTime(0.0001, actx.currentTime, 0.08); setTimeout(function () { g.disconnect(); }, 800);
+  soundBtn();
+}
+function chipPause(p) {
+  // 투어 창(악기, 카페, 사진)을 여는 동안은 게임 음악을 멈춘다
+  if (p) { chip.paused = chip.on; chipStop(); } else if (chip.paused) { chip.paused = false; chipStart(); }
+}
+function pref(v) { try { if (v === undefined) return localStorage.getItem("tour.gamebgm"); localStorage.setItem("tour.gamebgm", v); } catch (e) { return null; } }
+function soundBtn() {
+  var b = $("soundBtn");
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/>' + (chip.on
+    ? '<path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+    : '<path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>');
+  b.setAttribute("aria-label", chip.on ? "음악 끄기" : "음악 켜기");
+  b.hidden = !CHIP.length;
+}
+$("soundBtn").addEventListener("click", function () { if (chip.on) { chipStop(); pref("off"); } else { chipStart(); pref("on"); } });
+document.addEventListener("visibilitychange", function () { if (actx) { if (document.hidden) actx.suspend(); else actx.resume(); } });
+
+/* ---------- 시작 ---------- */
+document.title = (G.title || "교회 탐험") + (T.church && T.church.name ? " · " + T.church.name : "");
+$("tTitle").textContent = G.title || "교회 탐험"; $("tSub").textContent = G.subtitle || "";
+var art = $("titleArt").getContext("2d"); art.drawImage(personImg(PLAYER, "down", 0), 0, 0);
+var saved = load();
+if (saved && saved.q > 0) { $("startBtn").textContent = "이어서 하기"; $("newBtn").hidden = false; }
+function begin(fresh) {
+  if (!fresh && saved && maps[saved.map]) { quest = Math.min(saved.q || 0, QUESTS.length); P.map = saved.map; P.x = saved.x; P.y = saved.y; P.dir = saved.dir || "down"; }
+  else { quest = 0; P.map = S0.map; P.x = S0.x; P.y = S0.y; P.dir = S0.dir || "down"; }
+  $("title").hidden = true; audio();
+  if (pref() !== "off") chipStart(); else soundBtn();
+  updateHud(); updateQuest(); save();
+  emit("map:" + P.map);
+  if (fresh || !saved) {
+    var greet = G.intro || ["방향 버튼으로 걸어 다니고, 사람이나 물건 앞에서 A 를 눌러 보세요.", "위에 나오는 할 일을 따라가면 교회를 한 바퀴 둘러볼 수 있어요."];
+    talk("", greet, null);
+  }
+}
+$("startBtn").addEventListener("click", function () { begin(false); });
+$("newBtn").addEventListener("click", function () { saved = null; begin(true); });
+soundBtn(); resize(); updateHud(); updateQuest();
+requestAnimationFrame(frame);
+if (location.hash === "#debug") window.GAME = { P: P, held: function () { return held; }, busy: busy, quest: function () { return quest; } };   // 자동 시험용
+})();
+</script>
+</body>
+</html>
