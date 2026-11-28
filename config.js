@@ -146,7 +146,7 @@ window.TOUR = {
 
     // 360도가 아닌 넓은 각도 사진 (폰 0.6배 렌즈). 좌우 130도, 위아래 84도쯤 담겨 있습니다.
     cafe: {
-      name: "카페 예:O",
+      name: "예:ON 카페",
       image: "photos/cafe.jpg",
       hfov: 130, vfov: 84,
       startYaw: 0,
@@ -236,7 +236,7 @@ window.TOUR = {
   },
 
   cafe: {
-    title: "카페 예:O",
+    title: "예:ON 카페",
     image: "photos/cafe-counter.jpg",   // 메뉴 위에 나오는 사진 (없으면 생략)
     intro: "한 잔 골라보세요.",
     menu: ["아메리카노", "카페라떼", "유자차", "아이스티"],
@@ -274,13 +274,13 @@ window.TOUR = {
       bible: { name: "시온이의 성경책", desc: "앞장에 '시온' 이라고 적힌 작은 파란 성경책", icon: "bible", color: "#2f5fae" },
       // total 이 있으면 여러 개를 모으는 아이템 (가방에 3/6 처럼 나옴). 숨은 곳은 finds 에 적고, 가끔 반짝입니다
       candy: { name: "말랑 캔디", desc: "교회 곳곳에 숨어 있는 달콤한 캔디", icon: "candy", color: "#e8506a", total: 6, doneText: "말랑 캔디 6개를 모두 찾았어요! 대단해요" },
-      coupon: { name: "커피 쿠폰", icon: "coupon", desc: "카페 예:O 에서 실제 음료 교환권으로 바꿀 수 있어요" },
+      coupon: { name: "커피 쿠폰", icon: "coupon", desc: "예:ON 카페에서 실제 음료 교환권으로 바꿀 수 있어요" },
     },
     quests: [
       { text: "3층에서 들리는 울음소리를 따라가 보세요", until: "talk:zion" },
       { text: "4층 본당 의자에서 시온이의 성경책을 찾아 보세요", until: "get:bible" },
       { text: "3층의 시온이에게 성경책을 돌려주세요", until: "get:coupon" },
-      { text: "카페 예:O 에서 쿠폰을 음료 교환권으로 바꾸세요", until: "coupon" },
+      { text: "예:ON 카페에서 쿠폰을 음료 교환권으로 바꾸세요", until: "coupon" },
       { text: "4층 교회 입구의 안내 집사님께 초대장을 받으세요", until: "talk:guide" },
     ],
     doneText: "미션 완료! 축제 날 교환권을 꼭 쓰세요",
@@ -319,7 +319,7 @@ window.TOUR = {
           { type: "person", id: "greeter", x: 8, y: 4, dir: "left", name: "안내 청년", look: { hair: "#4a3020", shirt: "#4f8a3c" },
             say: ["안녕하세요! 예임교회에 오신 걸 환영해요.", "교회는 이 건물 3층부터 5층까지예요. 5층은 지금 준비 중이에요.", "그런데… 3층에서 아이 울음소리가 들리는 것 같아요.", "왼쪽 위 엘리베이터로 걸어가면 층을 고를 수 있어요."],
             sayAt: { "done": ["미션을 다 하셨군요! 축제 날 꼭 만나요."] } },
-          { type: "sign", x: 4, y: 0, say: ["건물 안내 · 예임교회", "3층: 카페 예:O\n4층: 본당\n5층: 준비 중", "엘리베이터를 타고 올라오세요."] },
+          { type: "sign", x: 4, y: 0, say: ["건물 안내 · 예임교회", "3층: 예:ON 카페\n4층: 본당\n5층: 준비 중", "엘리베이터를 타고 올라오세요."] },
         ],
       },
       "4f": {
@@ -414,18 +414,18 @@ window.TOUR = {
           "####EE#####       ",
         ],
         areas: [
-          { x: 0, y: 0, w: 18, h: 7, name: "카페 예:O", scene: "cafe" },
+          { x: 0, y: 0, w: 18, h: 7, name: "예:ON 카페", scene: "cafe" },
           { x: 0, y: 7, w: 18, h: 9, name: "3층 안쪽", scene: "room3f" },
           { x: 0, y: 16, w: 18, h: 7, name: "3층 엘리베이터 앞", scene: "hall3f" },
         ],
         objects: [
           { type: "cafe", x: 11, y: 2 },
           { type: "person", id: "barista", x: 11, y: 1, dir: "down", name: "바리스타", look: { hair: "#3b2a20", shirt: "#1f2a44" },
-            say: ["어서 오세요, 카페 예:O 입니다!", "커피 쿠폰이 있으면 카운터에서 A 를 눌러 주세요.", "실제 음료 교환권으로 바꿔 드려요."] },
+            say: ["어서 오세요, 예:ON 카페입니다!", "커피 쿠폰이 있으면 카운터에서 A 를 눌러 주세요.", "실제 음료 교환권으로 바꿔 드려요."] },
           { type: "person", id: "zion", x: 3, y: 12, dir: "down", name: "시온", look: { hair: "#3b2a20", shirt: "#7fb3d5" }, cry: true,
             say: ["흑흑… 제 파란 성경책이 없어졌어요.", "아까 4층 본당 예배 때 의자에 두고 온 것 같아요…", "찾아 주실 수 있어요?"],
             give: { need: "bible", get: "coupon" },
-            sayGive: ["앗, 제 성경책이에요! 찾아 주셔서 고마워요!", "이거 받으세요. 엄마가 준 커피 쿠폰이에요.", "카페 예:O 에 가져가면 진짜 음료로 바꿔 줘요!"],
+            sayGive: ["앗, 제 성경책이에요! 찾아 주셔서 고마워요!", "이거 받으세요. 엄마가 준 커피 쿠폰이에요.", "예:ON 카페에 가져가면 진짜 음료로 바꿔 줘요!"],
             sayAfter: ["성경책 찾아 주셔서 고마워요!", "시온은 성경에도 나오는 이름이에요. 하나님이 사랑하시는 곳이래요."] },
           { type: "person", id: "friend", x: 10, y: 8, dir: "left", name: "교회 친구", look: { hair: "#8a5a2b", shirt: "#c0392b" },
             say: ["여기는 3층이에요. 책도 읽고, 이야기도 나누고, 커피도 마시는 곳이에요.", "4층으로는 저기 계단으로도 갈 수 있어요."] },

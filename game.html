@@ -619,9 +619,7 @@ function useObject(o) {
   if (o.type === "cafe") {
     // 커피 쿠폰이 있으면 실제 교환권으로 바꾸는 카페 화면을, 이미 바꿨으면 교환권을 다시 보여준다
     if (st.ticket) return showTicket();
-    if (has("coupon")) return talk("바리스타", ["커피 쿠폰이네요! 실제 음료 교환권으로 바꿔 드릴게요.", "드시고 싶은 음료를 골라 주세요."], function () {
-      openTour({ scene: o.scene || sceneHere(), open: "cafe" });
-    });
+    if (has("coupon")) return talk("바리스타", ["커피 쿠폰이네요! 실제 음료 교환권으로 바꿔 드릴게요.", "드시고 싶은 음료를 골라 주세요."], cafeMenu);
     return talk("바리스타", G.cafeNeed || ["커피 쿠폰이 있으면 음료 교환권으로 바꿔 드려요.", "3층 어딘가에서 우는 아이를 도와주면 쿠폰을 받을지도 몰라요."], null);
   }
 }
@@ -654,9 +652,13 @@ $("dialog").addEventListener("click", advance);
 /* ---------- 엘리베이터 ---------- */
 var menuSel = 0, menuItems = [];
 function elevatorMenu() {
+  openMenu("몇 층으로 갈까요?", (G.elevator || []).filter(function (it) { return it.map !== P.map; }).concat([{ label: "그만두기" }]));
+}
+// 고르기 창 (엘리베이터 층, 카페 음료). 항목에 pick 함수가 있으면 고를 때 그 함수를 부른다
+function openMenu(title, items) {
   var m = $("menu"); m.textContent = ""; held = [];
-  var p = document.createElement("p"); p.textContent = "몇 층으로 갈까요?"; m.appendChild(p);
-  menuItems = (G.elevator || []).filter(function (it) { return it.map !== P.map; }).concat([{ label: "그만두기" }]);
+  var p = document.createElement("p"); p.textContent = title; m.appendChild(p);
+  menuItems = items;
   menuItems.forEach(function (it, i) {
     var b = document.createElement("button"); b.type = "button"; b.textContent = it.label + (it.soon ? " · 준비 중" : ""); b.setAttribute("role", "menuitem");
     if (it.soon) b.className = "soon";
@@ -669,6 +671,7 @@ function markMenu() { Array.prototype.forEach.call($("menu").querySelectorAll("b
 function menuMove(d) { if (d === "up" || d === "down") { menuSel = (menuSel + (d === "up" ? -1 : 1) + menuItems.length) % menuItems.length; markMenu(); blip(); } }
 function menuPick() {
   var it = menuItems[menuSel]; $("menu").hidden = true; busyUntil = performance.now() + 150;
+  if (it && it.pick) return it.pick();
   if (it && it.soon) return talk("", it.soon === true ? [it.label + "은(는) 지금 준비 중이에요."] : it.soon, null);
   if (!it || !it.map) return;
   ding();
@@ -678,6 +681,22 @@ function menuPick() {
     $("cv").classList.remove("fade");
     toast("띵! " + it.label + "입니다");
   }, reduce ? 0 : 450);
+}
+
+/* ---------- 카페: 게임 화면 안에서 음료를 고르고 쿠폰을 교환권으로 바꾼다 ---------- */
+function cafeMenu() {
+  var C = T.cafe || {}, menu = C.menu && C.menu.length ? C.menu : ["음료"];
+  openMenu("어떤 음료로 할까요?", menu.map(function (d) {
+    return { label: d, pick: function () {
+      talk("바리스타", [d + " 로 할게요! 교환권을 드릴게요.", "축제 날 카페에서 이 교환권을 보여 주세요."], function () {
+        if (!has("coupon")) return;
+        dropItem("coupon");
+        st.ticket = { drink: String(d).slice(0, 20), at: Date.now() };
+        updateBag(); save(); ding();
+        emit("coupon"); showTicket();
+      });
+    } };
+  }).concat([{ label: "다음에 할게요" }]));
 }
 
 /* ---------- 미션 ---------- */

@@ -38,8 +38,8 @@ python3 -m http.server 8000
 ## 도트 게임 (game.html 의 script 안)
 - 그림: `TILE`(바닥, 벽), `THING`(악기, 물건), `personImg`(사람 16x16 도트, `POSE`)
 - 지도, 움직임: `maps`, `walkable`, `tryMove`, `tick`(rAF + 타이머 보조), `draw`
-- 살펴보기, 대화, 엘리베이터: `interact`, `talk`/`advance`, `elevatorMenu`/`menuPick`
-- 미션, 아이템: `emit`(일어난 일 기억, 앞질러도 진행), `updateQuest`, `addItem`/`dropItem`, `useObject`(사람 give, 카페 교환권), 가방 `openBag`
+- 살펴보기, 대화, 고르기 창: `interact`, `talk`/`advance`, `openMenu`/`menuPick` (엘리베이터 `elevatorMenu`, 카페 음료 `cafeMenu`)
+- 미션, 아이템: `emit`(일어난 일 기억, 앞질러도 진행), `updateQuest`, `addItem`/`dropItem`, `useObject`(사람 give, 카페는 `cafeMenu` 로 교환권), 가방 `openBag`
 - 층 이동: `tryMove`(E 엘리베이터), `arrived`/`useStairs`(s 계단), `warp`
 - 투어 화면 띄우기: `openTour`, `message` 수신 (coupon 이면 교환권 `st.ticket`)
 - 함께하기: `netZone`(구역 안에서만 연결), `netConnect`/`netPos`/2초 재전송, `others`. 서버는 `server/worker.js`
